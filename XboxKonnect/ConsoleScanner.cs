@@ -3,7 +3,7 @@
  * Created by Stelio Kontos
  * Date: 10/24/2017
  */
-#undef DEBUG
+//#undef DEBUG
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -25,9 +25,9 @@ namespace XboxKonnect
 		private IPEndPoint localIpEndPoint;
 		private List<String> subnetRanges;
 
-		public ConsoleController ConsoleController { get; private set; }
-		public TimeSpan Frequency { get; set; }
-		public bool Scanning { get; private set; }
+		public ConsoleController ConsoleController { get; set; }
+		public TimeSpan Frequency { get; set; } = new TimeSpan(0, 0, 1);
+		public bool Scanning { get; private set; } = false;
 
 		public event Action<object, EventArgs> SubscribeToFilterChanges;
 		public void AddConnectionEvent(EventArgs e)
@@ -44,13 +44,9 @@ namespace XboxKonnect
 		{
 			this.ConsoleController = new ConsoleController();
 
-			// Initialize subnet ranges
 			this.myEndPoint = GetMyEndPoint();
 			this.subnetRanges = GetSubnetRanges();
-
-			// Initialize scanner
 			this.Frequency = frequency;
-			this.Scanning = false;
 
 			if (autoStart)
 				Start();
@@ -194,6 +190,24 @@ namespace XboxKonnect
 			}
 		}
 
+		private void ProcessResponse(UdpReceiveResult receiveResult)
+		{
+			var xbox = ConsoleConnection.NewXboxConnection();
+			xbox.Response = Encoding.ASCII.GetString(receiveResult.Buffer).Skip(2).ToString();
+			xbox.IP = receiveResult.RemoteEndPoint.Address.ToString();
+			xbox.LastPing = DateTime.Now;
+			SetConnectionType(ref xbox);
+
+			if (ConsoleController.ConnectedConsoles.ContainsKey(xbox.IP))
+			{
+				UpdateConnection(xbox);
+			}
+			else
+			{
+				AddConnection(xbox);
+			}
+		}
+
 		private async void Listen()
 		{
 			while (Scanning)
@@ -215,6 +229,20 @@ namespace XboxKonnect
 
 				await Task.Delay(10);
 			}
+		}
+
+		private void ListenAsync()
+		{
+			Task.Run(async () =>
+			{
+				while(Scanning)
+				{
+					//Byte[] receiveBytes = udpClientScanner.Receive(ref localIpEndPoint);
+					var response = await udpClientScanner.ReceiveAsync();
+					ProcessResponse(response);
+					//await Task.Delay(10);
+				}
+			});
 		}
 
 		private async void Broadcast()
