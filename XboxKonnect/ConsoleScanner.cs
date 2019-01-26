@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace XboxKonnect
 {
-	class ConsoleScanner
+	public class ConsoleScanner
 	{
 		private static readonly string subnetRangeBridged = "192.168.137";
 		private static readonly byte[] pingPacketMsgData = { 0x03, 0x04, 0x6a, 0x74, 0x61, 0x67 };
@@ -120,12 +120,25 @@ namespace XboxKonnect
 			}
 
 			// TODO: Pass args to custom event
-			AddConnectionEvent(EventArgs.Empty);
+			//AddConnectionEvent(EventArgs.Empty);
+			Console.WriteLine("[XboxKonnect] {0} DISCOVERED: {1}", xbox.IP, xbox.LastPing);
 		}
 
 		private void UpdateConnection(ConsoleConnection xbox)
 		{
+			try
+			{
+				lock (ConsoleController.ConnectedConsoles)
+					ConsoleController.ConnectedConsoles[xbox.IP].LastPing = xbox.LastPing;
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine(ex);
+			}
 
+			// TODO: Pass args to custom event
+			//AddConnectionEvent(EventArgs.Empty);
+			Console.WriteLine("[XboxKonnect] {0} REPLIED: {1}", xbox.IP, xbox.LastPing);
 		}
 
 		private void RemoveConnection(ConsoleConnection xbox)
@@ -140,7 +153,8 @@ namespace XboxKonnect
 			}
 
 			// TODO: Pass args to custom event
-			AddConnectionEvent(EventArgs.Empty);
+			//AddConnectionEvent(EventArgs.Empty);
+			Console.WriteLine("[XboxKonnect] {0} REMOVED", xbox.IP);
 		}
 
 		private void SetConnectionType(ref ConsoleConnection xbox)
@@ -164,16 +178,15 @@ namespace XboxKonnect
 			xbox.IP = localIpEndPoint.Address.ToString();
 			xbox.LastPing = DateTime.Now;
 			SetConnectionType(ref xbox);
-			
+
 			if (ConsoleController.ConnectedConsoles.ContainsKey(xbox.IP))
 			{
-				lock (ConsoleController.ConnectedConsoles)
-				{
-					ConsoleController.ConnectedConsoles[xbox.IP].LastPing = xbox.LastPing;
-				}
+				UpdateConnection(xbox);
 			}
 			else
+			{
 				AddConnection(xbox);
+			}
 		}
 
 		private async void Listen()
@@ -223,14 +236,18 @@ namespace XboxKonnect
 		{
 			while (Scanning)
 			{
-				foreach(ConsoleConnection xbox in ConsoleController.ConnectedConsoles.Values)
+				//if(ConsoleController.ConnectedConsoles.Any<KeyValuePair<string, ConsoleConnection>>(x => DateTime.Now.Subtract(x.Value.LastPing).TotalSeconds > 3)) { }
+
+				List<ConsoleConnection> consoles = new List<ConsoleConnection>(ConsoleController.ConnectedConsoles.Values);
+
+				foreach (var xbox in consoles)
 				{
 					var timespan = DateTime.Now.Subtract(xbox.LastPing);
 					if (timespan.TotalSeconds > 3) // TODO: Make timeout delay a property
 						RemoveConnection(xbox);
 				}
 
-				await Task.Delay(Frequency + new TimeSpan(0, 0, 1));
+				await Task.Delay(Frequency);
 			}
 		}
 
@@ -264,6 +281,8 @@ namespace XboxKonnect
 				Monitor();
 			});
 
+			Console.WriteLine("[XboxKonnect] Scanning started ({0} frequency).", this.Frequency);
+
 			//Listen();
 			//Broadcast();
 			//Monitor();
@@ -278,6 +297,8 @@ namespace XboxKonnect
 			udpClientScanner.Close();
 			localIpEndPoint = null;
 			subnetRanges.Clear();
+
+			Console.WriteLine("[XboxKonnect] Scanning stopped.");
 		}
 
 		#endregion
