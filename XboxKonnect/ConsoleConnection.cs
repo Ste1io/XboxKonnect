@@ -4,19 +4,6 @@
  * Date: 10/24/2017
  */
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading;
-// using XDevkit;
 
 namespace XboxKonnect
 {

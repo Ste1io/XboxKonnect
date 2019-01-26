@@ -1,6 +1,11 @@
-﻿using System;
+﻿/*
+ * Console Auto Discovery and Status Scanner
+ * Created by Stelio Kontos
+ * Date: 10/24/2017
+ */
+#undef DEBUG
+using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
@@ -121,7 +126,7 @@ namespace XboxKonnect
 
 			// TODO: Pass args to custom event
 			//AddConnectionEvent(EventArgs.Empty);
-			Console.WriteLine("[XboxKonnect] {0} DISCOVERED: {1}", xbox.IP, xbox.LastPing);
+			Debug.WriteLine("[XboxKonnect] {0} DISCOVERED: {1}", xbox.IP, xbox.LastPing);
 		}
 
 		private void UpdateConnection(ConsoleConnection xbox)
@@ -138,7 +143,7 @@ namespace XboxKonnect
 
 			// TODO: Pass args to custom event
 			//AddConnectionEvent(EventArgs.Empty);
-			Console.WriteLine("[XboxKonnect] {0} REPLIED: {1}", xbox.IP, xbox.LastPing);
+			Debug.WriteLine("[XboxKonnect] {0} REPLIED: {1}", xbox.IP, xbox.LastPing);
 		}
 
 		private void RemoveConnection(ConsoleConnection xbox)
@@ -154,7 +159,7 @@ namespace XboxKonnect
 
 			// TODO: Pass args to custom event
 			//AddConnectionEvent(EventArgs.Empty);
-			Console.WriteLine("[XboxKonnect] {0} REMOVED", xbox.IP);
+			Debug.WriteLine("[XboxKonnect] {0} REMOVED", xbox.IP);
 		}
 
 		private void SetConnectionType(ref ConsoleConnection xbox)
@@ -281,7 +286,7 @@ namespace XboxKonnect
 				Monitor();
 			});
 
-			Console.WriteLine("[XboxKonnect] Scanning started ({0} frequency).", this.Frequency);
+			Debug.WriteLine("[XboxKonnect] Scanning started ({0} frequency).", this.Frequency);
 
 			//Listen();
 			//Broadcast();
@@ -298,7 +303,7 @@ namespace XboxKonnect
 			localIpEndPoint = null;
 			subnetRanges.Clear();
 
-			Console.WriteLine("[XboxKonnect] Scanning stopped.");
+			Debug.WriteLine("[XboxKonnect] Scanning stopped.");
 		}
 
 		#endregion

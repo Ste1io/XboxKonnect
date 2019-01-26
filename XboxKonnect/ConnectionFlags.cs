@@ -1,8 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿/*
+ * Console Auto Discovery and Status Scanner
+ * Created by Stelio Kontos
+ * Date: 10/24/2017
+ */
+using System;
 
 namespace XboxKonnect
 {
