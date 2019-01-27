@@ -32,15 +32,6 @@ namespace XboxKonnect
 		#region Public Methods
 
 		/// <summary>
-		/// Overrides <see cref="ToString"/>.
-		/// </summary>
-		/// <returns>IP - CPUKey</returns>
-		public override string ToString()
-		{
-			return this.IP + " - " + this.Response;
-		}
-
-		/// <summary>
 		/// Equality comparer between two instances of the <see cref="ConsoleConnection"/> class based on CPUKey.
 		/// </summary>
 		/// <param name="obj">Object to compare.</param>
@@ -49,6 +40,15 @@ namespace XboxKonnect
 		public bool Equals(ConsoleConnection obj)
 		{
 			return obj.IP == IP;
+		}
+
+		/// <summary>
+		/// Overrides <see cref="ToString"/>.
+		/// </summary>
+		/// <returns>IP - CPUKey</returns>
+		public override string ToString()
+		{
+			return this.IP + " - " + this.Response;
 		}
 
 		#endregion

@@ -139,7 +139,7 @@ namespace XboxKonnect
 
 			// TODO: Pass args to custom event
 			//AddConnectionEvent(EventArgs.Empty);
-			Debug.WriteLine("[XboxKonnect] {0} REPLIED: {1}", xbox.IP, xbox.LastPing);
+			//Debug.WriteLine("[XboxKonnect] {0} REPLIED: {1}", xbox.IP, xbox.LastPing);
 		}
 
 		private void RemoveConnection(ConsoleConnection xbox)
@@ -193,7 +193,7 @@ namespace XboxKonnect
 		private void ProcessResponse(UdpReceiveResult receiveResult)
 		{
 			var xbox = ConsoleConnection.NewXboxConnection();
-			xbox.Response = Encoding.ASCII.GetString(receiveResult.Buffer).Skip(2).ToString();
+			xbox.Response = Encoding.ASCII.GetString(receiveResult.Buffer).Remove(0, 2);
 			xbox.IP = receiveResult.RemoteEndPoint.Address.ToString();
 			xbox.LastPing = DateTime.Now;
 			SetConnectionType(ref xbox);
@@ -301,10 +301,12 @@ namespace XboxKonnect
 
 			Scanning = true;
 
-			var listenTask = Task.Run(() =>
-			{
-				Listen();
-			});
+			ListenAsync();
+
+			//var listenTask = Task.Run(() =>
+			//{
+			//	Listen();
+			//});
 			var broadcastTask = Task.Run(() =>
 			{
 				Broadcast();
@@ -314,7 +316,7 @@ namespace XboxKonnect
 				Monitor();
 			});
 
-			Debug.WriteLine("[XboxKonnect] Scanning started ({0} frequency).", this.Frequency);
+			Debug.WriteLine("[XboxKonnect] Scanning started on {0} ranges ({1} frequency).", subnetRanges.Count, this.Frequency);
 
 			//Listen();
 			//Broadcast();
