@@ -43,6 +43,7 @@
     <Compile Include="ConnectionFlags.cs" />
     <Compile Include="ConsoleConnection.cs" />
     <Compile Include="ConsoleController.cs" />
+    <Compile Include="OnAddConnectionEventArgs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ConsoleScanner.cs" />
   </ItemGroup>

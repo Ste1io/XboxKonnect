@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace XboxKonnect
 {
-	public class ConsoleScanner
+	public partial class ConsoleScanner
 	{
 		private static readonly string subnetRangeBridged = "192.168.137";
 		private static readonly byte[] pingPacketMsgData = { 0x03, 0x04, 0x6a, 0x74, 0x61, 0x67 };
@@ -28,12 +28,21 @@ namespace XboxKonnect
 		public ConsoleController ConsoleController { get; set; }
 		public TimeSpan Frequency { get; set; } = new TimeSpan(0, 0, 1);
 		public bool Scanning { get; private set; } = false;
+		
+		// Events
+		public event EventHandler<OnAddConnectionEventArgs> AddConnectionEvent;
 
-		public event Action<object, EventArgs> SubscribeToFilterChanges;
-		public void AddConnectionEvent(EventArgs e)
+		// Event Handler
+		protected virtual void OnAddConnection(ConsoleConnection xboxConnection)
 		{
-			SubscribeToFilterChanges?.Invoke(this, e);
+			AddConnectionEvent?.Invoke(this, new OnAddConnectionEventArgs(xboxConnection));
 		}
+
+		//public event Action<object, ConsoleConnection> SubscribeToAddConnectionEvent;
+		//public void AddConnectionEvent(ConsoleConnection e)
+		//{
+		//	SubscribeToAddConnectionEvent?.Invoke(this, e);
+		//}
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="ConsoleScanner"/> class.
@@ -120,9 +129,8 @@ namespace XboxKonnect
 				Debug.WriteLine(ex);
 			}
 
-			// TODO: Pass args to custom event
-			//AddConnectionEvent(EventArgs.Empty);
-			Debug.WriteLine("[XboxKonnect] {0} DISCOVERED: {1}", xbox.IP, xbox.LastPing);
+			// Event Triggered
+			OnAddConnection(xbox);
 		}
 
 		private void UpdateConnection(ConsoleConnection xbox)
