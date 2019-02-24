@@ -18,31 +18,52 @@ namespace XboxKonnect
 	public partial class ConsoleScanner
 	{
 		private static readonly string subnetRangeBridged = "192.168.137";
-		private static readonly byte[] pingPacketMsgData = { 0x03, 0x04, 0x6a, 0x74, 0x61, 0x67 };
+		private static readonly byte[] pingPacketMsgData = {
+			0x03,
+			0x04,
+			0x6a,
+			0x74,
+			0x61,
+			0x67
+		};
 
 		private UdpClient udpClientScanner;
 		private IPEndPoint myEndPoint;
 		private IPEndPoint localIpEndPoint;
 		private List<String> subnetRanges;
 
-		public ConsoleController ConsoleController { get; set; }
-		public TimeSpan Frequency { get; set; } = new TimeSpan(0, 0, 1);
-		public bool Scanning { get; private set; } = false;
-		
-		// Events
+		public ConsoleController ConsoleController {
+			get;
+			set;
+		}
+
+		public TimeSpan Frequency {
+			get;
+			set;
+		}
+
+		public bool Scanning {
+			get;
+			private set;
+		}
+
+		#region Events
+
 		public event EventHandler<OnAddConnectionEventArgs> AddConnectionEvent;
 
-		// Event Handler
+		public event EventHandler<OnRemoveConnectionEventArgs> RemoveConnectionEvent;
+
 		protected virtual void OnAddConnection(ConsoleConnection xboxConnection)
 		{
 			AddConnectionEvent?.Invoke(this, new OnAddConnectionEventArgs(xboxConnection));
 		}
 
-		//public event Action<object, ConsoleConnection> SubscribeToAddConnectionEvent;
-		//public void AddConnectionEvent(ConsoleConnection e)
-		//{
-		//	SubscribeToAddConnectionEvent?.Invoke(this, e);
-		//}
+		protected virtual void OnRemoveConnection(ConsoleConnection xboxConnection)
+		{
+			RemoveConnectionEvent?.Invoke(this, new OnRemoveConnectionEventArgs(xboxConnection));
+		}
+
+		#endregion
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="ConsoleScanner"/> class.
@@ -56,6 +77,7 @@ namespace XboxKonnect
 			this.myEndPoint = GetMyEndPoint();
 			this.subnetRanges = GetSubnetRanges();
 			this.Frequency = frequency;
+			this.Scanning = false;
 
 			if (autoStart)
 				Start();
@@ -115,21 +137,20 @@ namespace XboxKonnect
 			};
 		}
 
-		// TODO: Watch connection list for disconnections if last ping doesn't update
-		// TODO: Add events: AddConnection, RemoveConnection, UpdateConnection
-
 		private void AddConnection(ConsoleConnection xbox)
 		{
-			try {
+			try
+			{
 				lock (ConsoleController.ConnectedConsoles)
+				{
 					ConsoleController.ConnectedConsoles.Add(xbox.IP, xbox);
+				}
 			}
-			catch(Exception ex)
+			catch (Exception ex)
 			{
 				Debug.WriteLine(ex);
 			}
 
-			// Event Triggered
 			OnAddConnection(xbox);
 		}
 
@@ -138,21 +159,39 @@ namespace XboxKonnect
 			try
 			{
 				lock (ConsoleController.ConnectedConsoles)
+				{
 					ConsoleController.ConnectedConsoles[xbox.IP].LastPing = xbox.LastPing;
+					ConsoleConnection updXbox = ConsoleController.ConnectedConsoles[xbox.IP];
+					SetConnectionType(ref updXbox);
+				}
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine(ex);
+			}
+		}
+
+		private void SetConnectionFlag(ConsoleConnection xbox, ConnectionFlags flag)
+		{
+			try
+			{
+				lock (ConsoleController.ConnectedConsoles)
+				{
+					ConsoleController.ConnectedConsoles[xbox.IP].ConnectionState = flag;
+				}
 			}
 			catch (Exception ex)
 			{
 				Debug.WriteLine(ex);
 			}
 
-			// TODO: Pass args to custom event
-			//AddConnectionEvent(EventArgs.Empty);
-			//Debug.WriteLine("[XboxKonnect] {0} REPLIED: {1}", xbox.IP, xbox.LastPing);
+			Debug.WriteLine(String.Format("Connection flag set to {0}", flag));
 		}
 
-		private void RemoveConnection(ConsoleConnection xbox)
+		private void PurgeConnection(ConsoleConnection xbox)
 		{
-			try {
+			try
+			{
 				lock (ConsoleController.ConnectedConsoles)
 					ConsoleController.ConnectedConsoles.Remove(xbox.IP);
 			}
@@ -161,11 +200,11 @@ namespace XboxKonnect
 				Debug.WriteLine(ex);
 			}
 
-			// TODO: Pass args to custom event
-			//AddConnectionEvent(EventArgs.Empty);
-			Debug.WriteLine("[XboxKonnect] {0} REMOVED", xbox.IP);
+			Debug.WriteLine(String.Format("[XboxKonnect] {0} PURGED", xbox.IP));
+			OnRemoveConnection(xbox);
 		}
 
+		// TODO: Fire event when stale console reconnects
 		private void SetConnectionType(ref ConsoleConnection xbox)
 		{
 			xbox.ConnectionState |= ConnectionFlags.Online;
@@ -177,24 +216,6 @@ namespace XboxKonnect
 			else
 			{
 				xbox.ConnectionState |= ConnectionFlags.LAN;
-			}
-		}
-
-		private void ProcessResponse(Byte[] bytes)
-		{
-			var xbox = ConsoleConnection.NewXboxConnection();
-			xbox.Response = Encoding.ASCII.GetString(bytes).Remove(0, 2);
-			xbox.IP = localIpEndPoint.Address.ToString();
-			xbox.LastPing = DateTime.Now;
-			SetConnectionType(ref xbox);
-
-			if (ConsoleController.ConnectedConsoles.ContainsKey(xbox.IP))
-			{
-				UpdateConnection(xbox);
-			}
-			else
-			{
-				AddConnection(xbox);
 			}
 		}
 
@@ -216,43 +237,19 @@ namespace XboxKonnect
 			}
 		}
 
-		private async void Listen()
-		{
-			while (Scanning)
-			{
-				try
-				{
-					Byte[] receiveBytes = udpClientScanner.Receive(ref localIpEndPoint);
-
-					if (receiveBytes.Length > 0)
-					{
-						ProcessResponse(receiveBytes);
-						receiveBytes = null;
-					}
-				}
-				catch (Exception ex)
-				{
-					Debug.WriteLine(ex);
-				}
-
-				await Task.Delay(10);
-			}
-		}
-
 		private void ListenAsync()
 		{
 			Task.Run(async () =>
 			{
-				while(Scanning)
+				while (Scanning)
 				{
-					//Byte[] receiveBytes = udpClientScanner.Receive(ref localIpEndPoint);
 					var response = await udpClientScanner.ReceiveAsync();
 					ProcessResponse(response);
-					//await Task.Delay(10);
 				}
 			});
 		}
 
+		// TODO: Convert to async implementation
 		private async void Broadcast()
 		{
 			while (Scanning)
@@ -273,19 +270,21 @@ namespace XboxKonnect
 			}
 		}
 
+		// TODO: Convert to async implementation
 		private async void Monitor()
 		{
 			while (Scanning)
 			{
-				//if(ConsoleController.ConnectedConsoles.Any<KeyValuePair<string, ConsoleConnection>>(x => DateTime.Now.Subtract(x.Value.LastPing).TotalSeconds > 3)) { }
-
 				List<ConsoleConnection> consoles = new List<ConsoleConnection>(ConsoleController.ConnectedConsoles.Values);
 
 				foreach (var xbox in consoles)
 				{
 					var timespan = DateTime.Now.Subtract(xbox.LastPing);
-					if (timespan.TotalSeconds > 3) // TODO: Make timeout delay a property
-						RemoveConnection(xbox);
+					if (timespan.TotalSeconds > 3 && xbox.ConnectionState != ConnectionFlags.Offline)
+					{
+						ConsoleConnection _xbox = xbox;
+						SetConnectionFlag(_xbox, ConnectionFlags.Offline);
+					}
 				}
 
 				await Task.Delay(Frequency);
@@ -296,6 +295,9 @@ namespace XboxKonnect
 
 		#region Public Methods
 
+		/// <summary>
+		/// Start scanning for connections.
+		/// </summary>
 		public void Start()
 		{
 			if (Scanning)
@@ -311,26 +313,22 @@ namespace XboxKonnect
 
 			ListenAsync();
 
-			//var listenTask = Task.Run(() =>
-			//{
-			//	Listen();
-			//});
 			var broadcastTask = Task.Run(() =>
 			{
 				Broadcast();
 			});
+
 			var monitorTask = Task.Run(() =>
 			{
 				Monitor();
 			});
 
-			Debug.WriteLine("[XboxKonnect] Scanning started on {0} ranges ({1} frequency).", subnetRanges.Count, this.Frequency);
-
-			//Listen();
-			//Broadcast();
-			//Monitor();
+			Debug.WriteLine(String.Format("[XboxKonnect] Scanning started on {0} ranges ({1} frequency).", subnetRanges.Count, this.Frequency));
 		}
 
+		/// <summary>
+		/// Stop scanning for connections.
+		/// </summary>
 		public void Stop()
 		{
 			if (!Scanning)
@@ -342,6 +340,25 @@ namespace XboxKonnect
 			subnetRanges.Clear();
 
 			Debug.WriteLine("[XboxKonnect] Scanning stopped.");
+		}
+
+		/// <summary>
+		/// Purge stale connections from list.
+		/// If one or more consoles are purged, the remaining consoles
+		/// will most likely be assigned a new index.
+		/// </summary>
+		public void PurgeList()
+		{
+			List<ConsoleConnection> consoles = new List<ConsoleConnection>(ConsoleController.ConnectedConsoles.Values);
+
+			foreach (var xbox in consoles)
+			{
+				if (xbox.ConnectionState == ConnectionFlags.Offline)
+				{
+					PurgeConnection(xbox);
+				}
+			}
+
 		}
 
 		#endregion

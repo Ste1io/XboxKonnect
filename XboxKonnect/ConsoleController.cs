@@ -8,13 +8,20 @@ using System.Collections.Generic;
 
 namespace XboxKonnect
 {
-    public class ConsoleController
-    {
-		public Dictionary<string, ConsoleConnection> ConnectedConsoles { get; set; } = new Dictionary<string, ConsoleConnection>();
+	public class ConsoleController
+	{
+		public Dictionary<string, ConsoleConnection> ConnectedConsoles {
+			get;
+			set;
+		}
 
+		/// <summary>
+		/// Tracks all console connections, disconnections, and basic connection details,
+		/// and provides access to the list of active connections.
+		/// </summary>
 		public ConsoleController()
 		{
-
+			ConnectedConsoles = new Dictionary<string, ConsoleConnection>();
 		}
 	}
 }
