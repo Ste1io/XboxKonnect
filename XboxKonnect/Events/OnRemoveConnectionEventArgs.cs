@@ -8,12 +8,14 @@ using System;
 
 namespace XboxKonnect
 {
-	// Event Args
-	public class OnAddConnectionEventArgs : EventArgs
+	public class OnRemoveConnectionEventArgs : EventArgs
 	{
-		public ConsoleConnection XboxConnection { get; private set; }
+		public ConsoleConnection XboxConnection {
+			get;
+			private set;
+		}
 
-		public OnAddConnectionEventArgs(ConsoleConnection xboxConnection)
+		public OnRemoveConnectionEventArgs(ConsoleConnection xboxConnection)
 		{
 			this.XboxConnection = xboxConnection;
 		}
