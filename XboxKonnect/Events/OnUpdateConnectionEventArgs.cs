@@ -9,9 +9,9 @@ using System;
 namespace SK.XboxKonnect
 {
 	/// <summary>
-	/// Event args for events triggered when a connection is removed from <see cref="ConsoleController"/>.
+	/// Event args for events triggered when a connection is updated in <see cref="ConsoleController"/>.
 	/// </summary>
-	public class OnRemoveConnectionEventArgs : EventArgs
+	public class OnUpdateConnectionEventArgs : EventArgs
 	{
 		/// <summary>
 		/// Provides access to an <see cref="Connection"/> instance.
@@ -22,10 +22,10 @@ namespace SK.XboxKonnect
 		}
 
 		/// <summary>
-		/// Initializes a new instance of <see cref="OnRemoveConnectionEventArgs"/>.
+		/// Initializes a new instance of <see cref="OnUpdateConnectionEventArgs"/>.
 		/// </summary>
 		/// <param name="xboxConnection"></param>
-		public OnRemoveConnectionEventArgs(Connection xboxConnection)
+		public OnUpdateConnectionEventArgs(Connection xboxConnection)
 		{
 			this.XboxConnection = xboxConnection;
 		}

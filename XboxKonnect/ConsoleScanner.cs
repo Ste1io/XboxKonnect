@@ -3,7 +3,9 @@
  * Created by Stelio Kontos
  * Date: 10/24/2017
  */
-//#undef DEBUG
+
+#define DEBUG
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,52 +15,74 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace XboxKonnect
+namespace SK.XboxKonnect
 {
 	public partial class ConsoleScanner
 	{
-		private static readonly string subnetRangeBridged = "192.168.137";
-		private static readonly byte[] pingPacketMsgData = {
-			0x03,
-			0x04,
-			0x6a,
-			0x74,
-			0x61,
-			0x67
+		private static readonly string _subnetRangeBridged = "192.168.137";
+
+		// ..jtag
+		private static readonly byte[] _responseJtag = {
+			0x03, 0x04, 0x6a, 0x74, 0x61, 0x67
 		};
 
-		private UdpClient udpClientScanner;
-		private IPEndPoint myEndPoint;
-		private IPEndPoint localIpEndPoint;
-		private List<String> subnetRanges;
+		// ..XeDevkit
+		private static readonly byte[] _responseDevkit =
+		{
+			0x03, 0x04, 0x58, 0x65, 0x44, 0x65, 0x76, 0x6B, 0x69, 0x74
+		};
 
-		public ConsoleController ConsoleController {
-			get;
-			set;
-		}
+		private List<string> _subnetRanges;
+		private IPEndPoint _hostEndPoint;
+		private IPEndPoint _clientEndPoint;
+		private UdpClient _udpScanner;
 
-		public TimeSpan Frequency {
-			get;
-			set;
-		}
+		#region Public Properties
 
-		public bool Scanning {
-			get;
-			private set;
-		}
+		/// <summary>
+		/// Stores all current console connections, disconnections, and basic connection details.
+		/// </summary>
+		public Dictionary<string, Connection> Connections { get; private set; } = new Dictionary<string, Connection>();
+
+		/// <summary>
+		/// Returns whether connection scanning is currently active or not.
+		/// </summary>
+		public bool Scanning { get; private set; } = false;
+
+		/// <summary>
+		/// Get or set the frequency to scan for connection changes on the local network.
+		/// </summary>
+		public TimeSpan ScanFrequency { get; set; }
+
+		/// <summary>
+		/// The maximum amount of time before a non-responsive connection is considered offline.
+		/// </summary>
+		public TimeSpan DisconnectTimeout { get; set; }
+
+		/// <summary>
+		/// Whether offline connections should be automatically purged from the connection list or not.
+		/// </summary>
+		public bool RemoveOnDisconnect { get; set; }
+
+		#endregion
 
 		#region Events
 
 		public event EventHandler<OnAddConnectionEventArgs> AddConnectionEvent;
-
+		public event EventHandler<OnUpdateConnectionEventArgs> UpdateConnectionEvent;
 		public event EventHandler<OnRemoveConnectionEventArgs> RemoveConnectionEvent;
 
-		protected virtual void OnAddConnection(ConsoleConnection xboxConnection)
+		protected virtual void OnAddConnection(Connection xboxConnection)
 		{
 			AddConnectionEvent?.Invoke(this, new OnAddConnectionEventArgs(xboxConnection));
 		}
 
-		protected virtual void OnRemoveConnection(ConsoleConnection xboxConnection)
+		protected virtual void OnUpdateConnection(Connection xboxConnection)
+		{
+			UpdateConnectionEvent?.Invoke(this, new OnUpdateConnectionEventArgs(xboxConnection));
+		}
+
+		protected virtual void OnRemoveConnection(Connection xboxConnection)
 		{
 			RemoveConnectionEvent?.Invoke(this, new OnRemoveConnectionEventArgs(xboxConnection));
 		}
@@ -72,12 +96,11 @@ namespace XboxKonnect
 		/// <param name="frequency">Delay interval between pings.</param>
 		public ConsoleScanner(bool autoStart, TimeSpan frequency)
 		{
-			this.ConsoleController = new ConsoleController();
-
-			this.myEndPoint = GetMyEndPoint();
-			this.subnetRanges = GetSubnetRanges();
-			this.Frequency = frequency;
-			this.Scanning = false;
+			this._hostEndPoint = Utils.GetHostEndPoint();
+			this._subnetRanges = GetSubnetRanges();
+			this.ScanFrequency = frequency;
+			this.DisconnectTimeout = new TimeSpan(0, 0, 3);
+			this.RemoveOnDisconnect = false;
 
 			if (autoStart)
 				Start();
@@ -89,9 +112,7 @@ namespace XboxKonnect
 		/// <param name="autoStart">Begin passive console scan automatically.</param>
 		public ConsoleScanner(bool autoStart) :
 			this(autoStart, new TimeSpan(0, 0, 0, 1))
-		{
-
-		}
+		{ }
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="ConsoleScanner"/> class.
@@ -99,195 +120,170 @@ namespace XboxKonnect
 		/// <param name="frequency">Delay interval between pings.</param>
 		public ConsoleScanner(TimeSpan frequency) :
 			this(false, frequency)
-		{
-
-		}
+		{ }
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="ConsoleScanner"/> class.
 		/// </summary>
 		public ConsoleScanner() :
 			this(false, new TimeSpan(0, 0, 0, 1))
-		{
-
-		}
+		{ }
 
 		#region Private Methods
 
-		private IPEndPoint GetMyEndPoint()
+		private List<string> GetSubnetRanges()
 		{
-			using (Socket udpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
+			return new List<string>
 			{
-				udpSocket.Connect("10.0.20.20", 31337);
-				return udpSocket.LocalEndPoint as IPEndPoint;
-			}
-		}
-
-		private String GetSubnetRange(IPEndPoint endpoint)
-		{
-			return String.Join(".", endpoint.Address.GetAddressBytes().Take(3));
-		}
-
-		private List<String> GetSubnetRanges()
-		{
-			return new List<String>
-			{
-				String.Format("{0}.255", GetSubnetRange(myEndPoint)),
-				String.Format("{0}.255", subnetRangeBridged)
+				String.Format("{0}.255", Utils.GetSubnetRange(_hostEndPoint)),
+				String.Format("{0}.255", _subnetRangeBridged)
 			};
 		}
 
-		private void AddConnection(ConsoleConnection xbox)
+		private void AddConnection(Connection xbox)
 		{
 			try
 			{
-				lock (ConsoleController.ConnectedConsoles)
+				lock (Connections)
+					Connections.Add(xbox.IP, xbox);
+				OnAddConnection(xbox);
+			}
+			catch (Exception ex)
+			{
+				Trace.WriteLine(ex);
+			}
+		}
+
+		private void RemoveConnection(Connection xbox)
+		{
+			try
+			{
+				lock (Connections)
+					Connections.Remove(xbox.IP);
+				OnRemoveConnection(xbox);
+			}
+			catch (Exception ex)
+			{
+				Trace.WriteLine(ex);
+			}
+		}
+
+		//private void UpdateConnectionState(Connection xbox)
+		//{
+		//	try
+		//	{
+		//		Connections[xbox.IP].ConnectionState = xbox.ConnectionState;
+		//		OnUpdateConnection(xbox);
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		Trace.WriteLine(ex);
+		//	}
+		//}
+
+		private void UpdateConnectionState(string ip, ConnectionState newState)
+		{
+			try
+			{
+				if (Connections.TryGetValue(ip, out Connection xbox))
 				{
-					ConsoleController.ConnectedConsoles.Add(xbox.IP, xbox);
+					Connections[ip].ConnectionState = newState;
+					OnUpdateConnection(xbox);
 				}
 			}
 			catch (Exception ex)
 			{
-				Debug.WriteLine(ex);
+				Trace.WriteLine(ex);
 			}
 
-			OnAddConnection(xbox);
-		}
-
-		private void UpdateConnection(ConsoleConnection xbox)
-		{
-			try
-			{
-				lock (ConsoleController.ConnectedConsoles)
-				{
-					ConsoleController.ConnectedConsoles[xbox.IP].LastPing = xbox.LastPing;
-					ConsoleConnection updXbox = ConsoleController.ConnectedConsoles[xbox.IP];
-					SetConnectionType(ref updXbox);
-				}
-			}
-			catch (Exception ex)
-			{
-				Debug.WriteLine(ex);
-			}
-		}
-
-		private void SetConnectionFlag(ConsoleConnection xbox, ConnectionFlags flag)
-		{
-			try
-			{
-				lock (ConsoleController.ConnectedConsoles)
-				{
-					ConsoleController.ConnectedConsoles[xbox.IP].ConnectionState = flag;
-				}
-			}
-			catch (Exception ex)
-			{
-				Debug.WriteLine(ex);
-			}
-
-			Debug.WriteLine(String.Format("Connection flag set to {0}", flag));
-		}
-
-		private void PurgeConnection(ConsoleConnection xbox)
-		{
-			try
-			{
-				lock (ConsoleController.ConnectedConsoles)
-					ConsoleController.ConnectedConsoles.Remove(xbox.IP);
-			}
-			catch (Exception ex)
-			{
-				Debug.WriteLine(ex);
-			}
-
-			Debug.WriteLine(String.Format("[XboxKonnect] {0} PURGED", xbox.IP));
-			OnRemoveConnection(xbox);
-		}
-
-		// TODO: Fire event when stale console reconnects
-		private void SetConnectionType(ref ConsoleConnection xbox)
-		{
-			xbox.ConnectionState |= ConnectionFlags.Online;
-
-			if (Convert.ToBoolean(xbox.IP.Split('.')[2].Equals("137")))
-			{
-				xbox.ConnectionState |= ConnectionFlags.Bridged;
-			}
-			else
-			{
-				xbox.ConnectionState |= ConnectionFlags.LAN;
-			}
 		}
 
 		private void ProcessResponse(UdpReceiveResult receiveResult)
 		{
-			var xbox = ConsoleConnection.NewXboxConnection();
-			xbox.Response = Encoding.ASCII.GetString(receiveResult.Buffer).Remove(0, 2);
-			xbox.IP = receiveResult.RemoteEndPoint.Address.ToString();
-			xbox.LastPing = DateTime.Now;
-			SetConnectionType(ref xbox);
+			string response = Encoding.ASCII.GetString(receiveResult.Buffer).Remove(0, 2);
+			string ip = receiveResult.RemoteEndPoint.Address.ToString();
 
-			if (ConsoleController.ConnectedConsoles.ContainsKey(xbox.IP))
+			if (Connections.ContainsKey(ip))
 			{
-				UpdateConnection(xbox);
+				Connections[ip].LastPing = DateTime.Now;
+				if (Connections[ip].ConnectionState != ConnectionState.Online)
+				{
+					UpdateConnectionState(ip, ConnectionState.Online);
+				}
 			}
 			else
 			{
+				Connection xbox = Connection.NewXboxConnection();
+				xbox.response = response;
+				xbox.ConnectionState = ConnectionState.Online;
+				xbox.ConsoleType = ConsoleType.Jtag;
+				xbox.IP = ip;
+
+				if (Convert.ToBoolean(xbox.IP.Split('.')[2].Equals("137")))
+					xbox.ConnectionType = ConnectionType.Bridged;
+				else
+					xbox.ConnectionType = ConnectionType.LAN;
+
 				AddConnection(xbox);
 			}
 		}
 
-		private void ListenAsync()
+		private void Listen()
 		{
 			Task.Run(async () =>
 			{
 				while (Scanning)
 				{
-					var response = await udpClientScanner.ReceiveAsync();
+					var response = await _udpScanner.ReceiveAsync();
 					ProcessResponse(response);
 				}
 			});
 		}
 
-		// TODO: Convert to async implementation
-		private async void Broadcast()
+		private async void BroadcastAsync()
 		{
 			while (Scanning)
 			{
-				foreach (var range in subnetRanges)
+				foreach (var range in _subnetRanges)
 				{
 					try
 					{
-						udpClientScanner.Send(pingPacketMsgData, pingPacketMsgData.Length, range, 730);
+						_udpScanner.Send(_responseJtag, _responseJtag.Length, range, 730);
 					}
 					catch (Exception ex)
 					{
-						Debug.WriteLine(ex);
+						Trace.WriteLine(ex);
 					}
 				}
 
-				await Task.Delay(Frequency);
+				await Task.Delay(ScanFrequency);
 			}
 		}
 
-		// TODO: Convert to async implementation
-		private async void Monitor()
+		private async void MonitorAsync()
 		{
 			while (Scanning)
 			{
-				List<ConsoleConnection> consoles = new List<ConsoleConnection>(ConsoleController.ConnectedConsoles.Values);
+				var consoles = new List<Connection>(Connections.Values).Where(x => DateTime.Now.Subtract(x.LastPing) > DisconnectTimeout);
 
 				foreach (var xbox in consoles)
 				{
-					var timespan = DateTime.Now.Subtract(xbox.LastPing);
-					if (timespan.TotalSeconds > 3 && xbox.ConnectionState != ConnectionFlags.Offline)
+					switch (xbox.ConnectionState)
 					{
-						ConsoleConnection _xbox = xbox;
-						SetConnectionFlag(_xbox, ConnectionFlags.Offline);
+						case ConnectionState.None:
+						case ConnectionState.Offline:
+							if (RemoveOnDisconnect)
+								RemoveConnection(xbox);
+							break;
+						case ConnectionState.Online:
+							UpdateConnectionState(xbox.IP, ConnectionState.Offline);
+							break;
+						default:
+							break;
 					}
 				}
 
-				await Task.Delay(Frequency);
+				await Task.Delay(ScanFrequency);
 			}
 		}
 
@@ -296,38 +292,30 @@ namespace XboxKonnect
 		#region Public Methods
 
 		/// <summary>
-		/// Start scanning for connections.
+		/// Start monitoring the local network for new or changed connections.
 		/// </summary>
 		public void Start()
 		{
 			if (Scanning)
 				return;
 
-			localIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
-			udpClientScanner = new UdpClient(localIpEndPoint);
-
-			myEndPoint = GetMyEndPoint();
-			subnetRanges = GetSubnetRanges();
+			_clientEndPoint = new IPEndPoint(IPAddress.Any, 0);
+			_udpScanner = new UdpClient(_clientEndPoint);
+			_hostEndPoint = Utils.GetHostEndPoint();
+			_subnetRanges = GetSubnetRanges();
 
 			Scanning = true;
 
-			ListenAsync();
+			Listen();
 
-			var broadcastTask = Task.Run(() =>
-			{
-				Broadcast();
-			});
+			var broadcastTask = Task.Run(() => { BroadcastAsync(); });
+			var monitorTask = Task.Run(() => { MonitorAsync(); });
 
-			var monitorTask = Task.Run(() =>
-			{
-				Monitor();
-			});
-
-			Debug.WriteLine(String.Format("[XboxKonnect] Scanning started on {0} ranges ({1} frequency).", subnetRanges.Count, this.Frequency));
+			Debug.WriteLine(String.Format("[XboxKonnect] Monitoring {0} local network ranges for new or changed connections.", _subnetRanges.Count));
 		}
 
 		/// <summary>
-		/// Stop scanning for connections.
+		/// Stop monitoring the local network for new or changed connections.
 		/// </summary>
 		public void Stop()
 		{
@@ -335,33 +323,50 @@ namespace XboxKonnect
 				return;
 
 			Scanning = false;
-			udpClientScanner.Close();
-			localIpEndPoint = null;
-			subnetRanges.Clear();
+			_udpScanner.Close();
+			_clientEndPoint = null;
+			_subnetRanges.Clear();
 
 			Debug.WriteLine("[XboxKonnect] Scanning stopped.");
 		}
 
 		/// <summary>
-		/// Purge stale connections from list.
-		/// If one or more consoles are purged, the remaining consoles
-		/// will most likely be assigned a new index.
+		/// Purge stale connections from Connections list.
 		/// </summary>
 		public void PurgeList()
 		{
-			List<ConsoleConnection> consoles = new List<ConsoleConnection>(ConsoleController.ConnectedConsoles.Values);
+			var consoles = new List<Connection>(Connections.Values).Where(x => x.ConnectionState.Equals(ConnectionState.Offline));
 
 			foreach (var xbox in consoles)
-			{
-				if (xbox.ConnectionState == ConnectionFlags.Offline)
-				{
-					PurgeConnection(xbox);
-				}
-			}
+				RemoveConnection(xbox);
 
+			Debug.WriteLine("[XboxKonnect] Purged Connections list");
 		}
 
 		#endregion
 
+	}
+
+	public static class Utils
+	{
+		internal static IPEndPoint GetHostEndPoint()
+		{
+			using (Socket udpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
+			{
+				udpSocket.Connect("10.0.20.20", 31337);
+				return udpSocket.LocalEndPoint as IPEndPoint;
+			}
+		}
+
+		internal static string GetSubnetRange(IPEndPoint endpoint)
+		{
+			return String.Join(".", endpoint.Address.GetAddressBytes().Take(3));
+		}
+
+		public static ConsoleScanner StartScanning(this ConsoleScanner scanner)
+		{
+			scanner.Start();
+			return scanner;
+		}
 	}
 }

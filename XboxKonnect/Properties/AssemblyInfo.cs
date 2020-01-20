@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("XboxKonnect")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("XboxKonnect by Stelio Kontos")]
+[assembly: AssemblyDescription("Console auto-discovery API for networked RGH/XDK boxes not added in Neighborhood.")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Stelio Kontos")]
 [assembly: AssemblyProduct("XboxKonnect")]
-[assembly: AssemblyCopyright("Copyright ©  2019")]
+[assembly: AssemblyCopyright("Copyright © 2017 - 2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
