@@ -14,7 +14,7 @@ using System;
 namespace SK.XboxKonnect
 {
 	/// <summary>
-	/// Event args for events triggered when a connection is removed from <see cref="ConsoleController"/>.
+	/// Event args for events triggered when a connection is removed from the connections dictionary.
 	/// </summary>
 	public class OnRemoveConnectionEventArgs : EventArgs
 	{

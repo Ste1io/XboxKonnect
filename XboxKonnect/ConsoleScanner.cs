@@ -20,6 +20,9 @@ using System.Threading.Tasks;
 
 namespace SK.XboxKonnect
 {
+	/// <summary>
+	/// Scans the local network for console connections, and manages connection state of discovered consoles.
+	/// </summary>
 	public partial class ConsoleScanner
 	{
 		private static readonly string _subnetRangeBridged = "192.168.137";
@@ -71,20 +74,44 @@ namespace SK.XboxKonnect
 
 		#region Events
 
+		/// <summary>
+		/// Event Handler for <see cref="OnAddConnection"/> events.
+		/// </summary>
 		public event EventHandler<OnAddConnectionEventArgs> AddConnectionEvent;
+
+		/// <summary>
+		/// Event Handler for <see cref="OnUpdateConnection"/> events.
+		/// </summary>
 		public event EventHandler<OnUpdateConnectionEventArgs> UpdateConnectionEvent;
+
+		/// <summary>
+		/// Event Handler for <see cref="OnRemoveConnection"/> events.
+		/// </summary>
 		public event EventHandler<OnRemoveConnectionEventArgs> RemoveConnectionEvent;
 
+		/// <summary>
+		/// Invokes the <see cref="AddConnectionEvent"/> Event Handler.
+		/// </summary>
+		/// <param name="xboxConnection">The <see cref="Connection"/> object.</param>
 		protected virtual void OnAddConnection(Connection xboxConnection)
 		{
 			AddConnectionEvent?.Invoke(this, new OnAddConnectionEventArgs(xboxConnection));
 		}
 
+		/// <summary>
+		/// Invokes the <see cref="UpdateConnectionEvent"/> Event Handler.
+		/// </summary>
+		/// <param name="xboxConnection">The <see cref="Connection"/> object.</param>
 		protected virtual void OnUpdateConnection(Connection xboxConnection)
 		{
 			UpdateConnectionEvent?.Invoke(this, new OnUpdateConnectionEventArgs(xboxConnection));
 		}
 
+
+		/// <summary>
+		/// Invokes the <see cref="RemoveConnectionEvent"/> Event Handler.
+		/// </summary>
+		/// <param name="xboxConnection">The <see cref="Connection"/> object.</param>
 		protected virtual void OnRemoveConnection(Connection xboxConnection)
 		{
 			RemoveConnectionEvent?.Invoke(this, new OnRemoveConnectionEventArgs(xboxConnection));
@@ -148,7 +175,7 @@ namespace SK.XboxKonnect
 			try
 			{
 				lock (Connections)
-					Connections.Add(xbox.IP, xbox);
+					Connections.Add(xbox.IP.Address.ToString(), xbox);
 				OnAddConnection(xbox);
 			}
 			catch (Exception ex)
@@ -162,7 +189,7 @@ namespace SK.XboxKonnect
 			try
 			{
 				lock (Connections)
-					Connections.Remove(xbox.IP);
+					Connections.Remove(xbox.IP.Address.ToString());
 				OnRemoveConnection(xbox);
 			}
 			catch (Exception ex)
@@ -191,25 +218,26 @@ namespace SK.XboxKonnect
 		private void ProcessResponse(UdpReceiveResult receiveResult)
 		{
 			string response = Encoding.ASCII.GetString(receiveResult.Buffer).Remove(0, 2);
-			string ip = receiveResult.RemoteEndPoint.Address.ToString();
+			IPEndPoint ip = receiveResult.RemoteEndPoint;
+			string ipString = ip.Address.ToString();
 
-			if (Connections.ContainsKey(ip))
+			if (Connections.ContainsKey(ipString))
 			{
-				Connections[ip].LastPing = DateTime.Now;
-				if (Connections[ip].ConnectionState != ConnectionState.Online)
+				Connections[ipString].LastPing = DateTime.Now;
+				if (Connections[ipString].ConnectionState != ConnectionState.Online)
 				{
-					UpdateConnectionState(ip, ConnectionState.Online);
+					UpdateConnectionState(ipString, ConnectionState.Online);
 				}
 			}
 			else
 			{
 				Connection xbox = Connection.NewXboxConnection();
-				xbox.response = response;
+				xbox.Name = response;
 				xbox.ConnectionState = ConnectionState.Online;
 				xbox.ConsoleType = ConsoleType.Jtag;
 				xbox.IP = ip;
 
-				if (Convert.ToBoolean(xbox.IP.Split('.')[2].Equals("137")))
+				if (Convert.ToBoolean(xbox.IP.Address.ToString().Split('.')[2].Equals("137")))
 					xbox.ConnectionType = ConnectionType.Bridged;
 				else
 					xbox.ConnectionType = ConnectionType.LAN;
@@ -266,7 +294,7 @@ namespace SK.XboxKonnect
 								RemoveConnection(xbox);
 							break;
 						case ConnectionState.Online:
-							UpdateConnectionState(xbox.IP, ConnectionState.Offline);
+							UpdateConnectionState(xbox.IP.Address.ToString(), ConnectionState.Offline);
 							break;
 						default:
 							break;

@@ -97,7 +97,7 @@ namespace SK
 		{
 			return TryUpdate(CPUKeyUtils.HexStringToBytes(value));
 		}
-		
+
 		/// <summary>
 		/// Sanity check to verify that a <see cref="CPUKey"/> object is valid.
 		/// </summary>

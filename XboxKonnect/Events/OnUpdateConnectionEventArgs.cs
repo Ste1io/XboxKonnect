@@ -14,7 +14,7 @@ using System;
 namespace SK.XboxKonnect
 {
 	/// <summary>
-	/// Event args for events triggered when a connection is updated in <see cref="ConsoleController"/>.
+	/// Event args for events triggered when a connection is updated in the connections dictionary
 	/// </summary>
 	public class OnUpdateConnectionEventArgs : EventArgs
 	{

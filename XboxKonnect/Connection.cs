@@ -11,6 +11,7 @@
 
 using System;
 using System.ComponentModel;
+using System.Net;
 
 namespace SK.XboxKonnect
 {
@@ -21,26 +22,37 @@ namespace SK.XboxKonnect
 	{
 		static readonly object _lock = new object();
 
-		private string _ip = String.Empty;
+		private IPEndPoint _ip = null;
 		private DateTime _firstPing = DateTime.Now;
 		private DateTime _lastPing = DateTime.Now;
 		private CPUKey _cpuKey = null;
 		private ConsoleType _consoleType = ConsoleType.None;
 		private ConnectionState _connectionState = ConnectionState.None;
 		private ConnectionType _connectionType = ConnectionType.None;
-
-		internal string response;
+		private string _name;
 
 		#region Public Properties
 
 		/// <summary>
 		/// The connection's local network IP.
 		/// </summary>
-		public string IP {
+		public IPEndPoint IP {
 			get => _ip;
 			internal set {
 				lock (_lock)
 					_ip = value;
+				NotifyPropertyChanged();
+			}
+		}
+
+		/// <summary>
+		/// Console name (default is Jtag / XeDevkit)
+		/// </summary>
+		public string Name {
+			get => _name;
+			internal set {
+				lock (_lock)
+					_name = value;
 				NotifyPropertyChanged();
 			}
 		}
@@ -154,7 +166,7 @@ namespace SK.XboxKonnect
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return String.Format("{0} [{1}, {2}] - {3}", IP, ConnectionState, ConnectionType, response);
+			return String.Format("{0} [{1}, {2}] - {3}", IP, ConnectionState, ConnectionType, Name);
 		}
 
 		#region PropertyChanged Events

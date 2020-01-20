@@ -16,6 +16,9 @@ using System.Net.Sockets;
 
 namespace SK.XboxKonnect
 {
+	/// <summary>
+	/// Utility methods for <see cref="ConsoleScanner"/> class.
+	/// </summary>
 	public static class Utils
 	{
 		internal static IPEndPoint GetHostEndPoint()
@@ -32,6 +35,11 @@ namespace SK.XboxKonnect
 			return String.Join(".", endpoint.Address.GetAddressBytes().Take(3));
 		}
 
+		/// <summary>
+		/// Static construction helper to simplify object creation of <see cref="ConsoleScanner"/> class.
+		/// </summary>
+		/// <param name="scanner">The <see cref="ConsoleScanner"/> object being constructed.</param>
+		/// <returns></returns>
 		public static ConsoleScanner StartScanning(this ConsoleScanner scanner)
 		{
 			scanner.Start();
