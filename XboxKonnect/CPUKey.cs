@@ -1,4 +1,14 @@
-﻿using System;
+﻿/*
+* CPUKey Class
+* 
+* Coded by Stelio Kontos,
+* aka Daniel McClintock
+* 
+* Copyright 2020
+* 
+*/
+
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
