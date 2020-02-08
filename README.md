@@ -3,26 +3,31 @@
 ## Usage
 
 ```c
-_xboxKonnect = new ConsoleScanner
+private ConsoleScanner _xboxKonnect;
+
+private void InitializeXboxKonnect()
 {
-  ScanFrequency = new TimeSpan(0, 0, 1),
-  DisconnectTimeout = new TimeSpan(0, 0, 3),
-  RemoveOnDisconnect = true,
-}.StartScanning();
-
-_xboxKonnect.AddConnectionEvent += delegate (object sender, OnAddConnectionEventArgs e)
-{
-  var con = _xboxManager.OpenConsole(e.XboxConnection.IP.Address.ToString());
-
-  try
+  _xboxKonnect = new ConsoleScanner
   {
-    e.XboxConnection.CPUKey = CPUKey.Parse(con.GetCPUKey());
-  }
-  catch (Exception ex)
-  {
-    Trace.WriteLine(ex);
-  }
+    ScanFrequency = new TimeSpan(0, 0, 1),
+    DisconnectTimeout = new TimeSpan(0, 0, 3),
+    RemoveOnDisconnect = true,
+  }.StartScanning();
 
-  Invoke((MethodInvoker)(() => AddConnectionButton(e.XboxConnection)));
-};
+  _xboxKonnect.AddConnectionEvent += delegate (object sender, OnAddConnectionEventArgs e)
+  {
+    var con = _xboxManager.OpenConsole(e.XboxConnection.IP.Address.ToString());
+
+    try
+    {
+      e.XboxConnection.CPUKey = CPUKey.Parse(con.GetCPUKey());
+    }
+    catch (Exception ex)
+    {
+      Trace.WriteLine(ex);
+    }
+
+    Debug.WriteLine("Connection found: " + e.XboxConnection);
+  };
+}
 ```
