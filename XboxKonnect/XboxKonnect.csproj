@@ -7,7 +7,7 @@
     <ProjectGuid>{66046441-EBE6-4898-9BFF-CE49D7F12E66}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>XboxKonnect</RootNamespace>
+    <RootNamespace>SK.XboxKonnect</RootNamespace>
     <AssemblyName>SK.XboxKonnect</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
