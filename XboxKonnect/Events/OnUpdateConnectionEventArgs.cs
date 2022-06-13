@@ -1,11 +1,10 @@
 ﻿/*
- * Console Auto Discovery and Status Scanner
- * 
- * Coded by Stelio Kontos,
- * aka Daniel McClintock
+ * XboxKonnect - Xbox Auto Discovery API
  * 
  * Created: 10/24/2017
- * Updated: 01/20/2020
+ * Author:  Daniel McClintock (alias: Stelio Kontos)
+ * 
+ * Copyright (c) 2017 Daniel McClintock
  * 
  */
 
