@@ -9,8 +9,6 @@
  * 
  */
 
-using System;
-
 namespace SK.XboxKonnect
 {
 	/// <summary>
@@ -21,7 +19,8 @@ namespace SK.XboxKonnect
 		/// <summary>
 		/// Provides access to an <see cref="Connection"/> instance.
 		/// </summary>
-		public Connection XboxConnection {
+		public Connection XboxConnection
+		{
 			get;
 			private set;
 		}
@@ -32,7 +31,7 @@ namespace SK.XboxKonnect
 		/// <param name="xboxConnection"></param>
 		public OnAddConnectionEventArgs(Connection xboxConnection)
 		{
-			this.XboxConnection = xboxConnection;
+			XboxConnection = xboxConnection;
 		}
 	}
 
