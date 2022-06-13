@@ -9,6 +9,8 @@
  */
 
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
+using System.Numerics;
 
 namespace SK
 {
@@ -18,7 +20,10 @@ namespace SK
 	/// </summary>
 	public class CPUKey : IEquatable<CPUKey>
 	{
-		internal Memory<byte> data = Memory<byte>.Empty;
+		private Memory<byte> data = Memory<byte>.Empty;
+
+		internal static int kValidByteLen = 0x10;
+		internal static ulong kECDMask = 0xFFFFFFFFFF030000;
 
 		/// <summary>
 		/// Returns an empty/invalid CPUKey object.
@@ -40,7 +45,7 @@ namespace SK
 			if (other is null)
 				throw new ArgumentNullException(nameof(other));
 
-			data = new byte[0x10];
+			data = new byte[kValidByteLen];
 			other.data.CopyTo(data);
 		}
 
@@ -51,10 +56,10 @@ namespace SK
 		/// <exception cref="ArgumentException"><paramref name="value"/> length is not 0x10 (16)</exception>
 		public CPUKey(ReadOnlySpan<byte> value)
 		{
-			if (value.Length != 0x10)
+			if (value.Length != kValidByteLen)
 				throw new ArgumentException("Source length is not equal to the length of a CPUKey (0x10 bytes).", nameof(value));
 
-			data = new byte[0x10];
+			data = new byte[kValidByteLen];
 			value.CopyTo(data.Span);
 		}
 
@@ -65,7 +70,7 @@ namespace SK
 		/// <returns>A new instance of CPUKey</returns>
 		public static CPUKey? Parse(ReadOnlySpan<byte> value)
 		{
-			if (value.Length != 0x10)
+			if (value.Length != kValidByteLen)
 				return default;
 			return new CPUKey(value);
 		}
@@ -110,7 +115,21 @@ namespace SK
 		/// Sanity check to verify that a CPUKey object is valid.
 		/// </summary>
 		/// <returns>Returns true if the object is a valid CPUKey, otherwise false</returns>
-		public bool IsValid() => !data.IsEmpty;
+		public bool IsValid()
+		{
+			if (data.IsEmpty)
+				return false;
+
+			Span<byte> bytes = stackalloc byte[kValidByteLen];
+			data.Span.CopyTo(bytes);
+			bytes[..sizeof(ulong)].Reverse();
+			bytes[sizeof(ulong)..].Reverse();
+
+			Span<ulong> parts = MemoryMarshal.Cast<byte, ulong>(bytes);
+			var hammingWeight = BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & kECDMask);
+
+			return hammingWeight == 53;
+		}
 
 		/// <summary>
 		/// Returns a <seealso cref="ReadOnlySpan{T}"/> from the current CPUKey instance
@@ -192,7 +211,7 @@ namespace SK
 		/// </summary>
 		/// <param name="value">The byte[] array representing a CPUKey.</param>
 		/// <returns>Returns true if the byte[] array is a valid CPUKey, false otherwise.</returns>
-		public static bool IsValid(ReadOnlySpan<byte> value) => value.Length == 0x10;
+		public static bool IsValid(ReadOnlySpan<byte> value) => value.Length == CPUKey.kValidByteLen;
 
 		/// <summary>
 		/// Sanity check to check verify that a UTF-16 encoded string representing a CPUKey is valid.
