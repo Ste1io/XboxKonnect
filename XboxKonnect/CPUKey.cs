@@ -1,16 +1,14 @@
 ﻿/*
-* CPUKey Class
-* 
-* Coded by Stelio Kontos,
-* aka Daniel McClintock
-* 
-* Copyright 2020
-* 
-*/
+ * CPUKey class
+ * 
+ * Created: 01/20/2020
+ * Author:  Daniel McClintock (alias: Stelio Kontos)
+ * 
+ * Copyright (c) 2020 Daniel McClintock
+ * 
+ */
 
-using System;
-using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SK
 {
@@ -20,208 +18,200 @@ namespace SK
 	/// </summary>
 	public class CPUKey : IEquatable<CPUKey>
 	{
-		/// <summary>
-		/// The CPUKey as a byte[] array.
-		/// </summary>
-		public byte[] Bytes { get; set; } = null;
-
-		#region Object Construction
+		internal Memory<byte> data = Memory<byte>.Empty;
 
 		/// <summary>
-		/// Public constructor for <see cref="CPUKey"/> class initialized from a preexisting CPUKey object.
+		/// Returns an empty/invalid <see cref="CPUKey"/> object.
 		/// </summary>
-		/// <param name="cpukey">A valid <see cref="CPUKey"/> object.</param>
-		public CPUKey(CPUKey cpukey) : this()
+		public static readonly CPUKey None = new();
+
+		/// <summary>
+		/// Initializes a new <see cref="CPUKey"/> instance that is empty (and invalid).
+		/// </summary>
+		public CPUKey() { }
+
+		/// <summary>
+		/// Initializes a new <see cref="CPUKey"/> instance, copying the underlying data from <paramref name="other"/>.
+		/// </summary>
+		/// <param name="other">A <see cref="CPUKey"/> instance</param>
+		/// <exception cref="ArgumentNullException"><paramref name="other"/> is null</exception>
+		public CPUKey(CPUKey other)
 		{
-			Bytes = cpukey.Bytes;
+			if (other is null)
+				throw new ArgumentNullException(nameof(other));
+
+			data = new byte[0x10];
+			other.data.CopyTo(data);
 		}
 
 		/// <summary>
-		/// Default constructor for <see cref="CPUKey"/> class.
+		/// Initializes a new <see cref="CPUKey"/> instance from an <seealso cref="Array"/>.
 		/// </summary>
-		public CPUKey()
-		{ }
-
-		public CPUKey ShallowCopy()
+		/// <param name="value">A <seealso cref="ReadOnlySpan{T}"/> representation of an <seealso cref="Array"/></param>
+		/// <exception cref="ArgumentException"><paramref name="value"/> length is not 0x10 (16)</exception>
+		public CPUKey(ReadOnlySpan<byte> value)
 		{
-			return (CPUKey)this.MemberwiseClone();
+			if (value.Length != 0x10)
+				throw new ArgumentException("Source length is not equal to the length of a CPUKey (0x10 bytes).", nameof(value));
+
+			data = new byte[0x10];
+			value.CopyTo(data.Span);
 		}
 
-		public CPUKey DeepCopy()
+		/// <summary>
+		/// Creates a new <see cref="CPUKey"/> instance from <paramref name="value"/>.
+		/// </summary>
+		/// <param name="value">A <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/></param>
+		/// <returns>A new instance of <see cref="CPUKey"/></returns>
+		public static CPUKey? Parse(ReadOnlySpan<byte> value)
 		{
-			CPUKey other = (CPUKey)this.MemberwiseClone();
-			other.Bytes = this.Bytes;
-			return other;
+			if (value.Length != 0x10)
+				return default;
+			return new CPUKey(value);
 		}
 
-		#endregion
-
-		#region Parsing Methods
-
-		public static CPUKey Parse(byte[] value)
+		/// <summary>
+		/// Creates a new <see cref="CPUKey"/> instance from <paramref name="value"/>.
+		/// </summary>
+		/// <param name="value">A CPUKey <seealso cref="String"/></param>
+		/// <returns>A new instance of <see cref="CPUKey"/></returns>
+		public static CPUKey? Parse(string? value)
 		{
-			CPUKey cpuKey = new CPUKey();
-			cpuKey.TryUpdate(value);
-			return cpuKey;
+			if (value is null || !CPUKeyUtils.IsValid(value))
+				return default;
+			return new CPUKey(CPUKeyUtils.HexStringToBytes(value));
 		}
 
-		public static CPUKey Parse(string value)
+		/// <summary>
+		/// Verify <paramref name="value"/> is a valid CPUKey, and initialize a new <see cref="CPUKey"/> instance at <paramref name="cpukey"/>
+		/// </summary>
+		/// <param name="value">The <seealso cref="Array"/> to validate and parse</param>
+		/// <param name="cpukey">A new <see cref="CPUKey"/> instance</param>
+		/// <returns></returns>
+		public static bool TryParse([NotNullWhen(true)] ReadOnlySpan<byte> value, [NotNullWhen(true)] out CPUKey? cpukey)
 		{
-			return Parse(CPUKeyUtils.HexStringToBytes(value));
+			cpukey = Parse(value);
+			return cpukey is not null;
 		}
 
-		public static bool TryParse(byte[] value, out CPUKey cpuKey)
+		/// <summary>
+		/// Verify <paramref name="value"/> is a valid CPUKey, and initialize a new <see cref="CPUKey"/> instance at <paramref name="cpukey"/>
+		/// </summary>
+		/// <param name="value">The <seealso cref="String"/> to validate and parse</param>
+		/// <param name="cpukey">A new <see cref="CPUKey"/> instance</param>
+		/// <returns></returns>
+		public static bool TryParse([NotNullWhen(true)] string? value, [NotNullWhen(true)] out CPUKey? cpukey)
 		{
-			cpuKey = new CPUKey();
-			return cpuKey.TryUpdate(value);
-		}
-
-		public static bool TryParse(string value, out CPUKey cpuKey)
-		{
-			return TryParse(CPUKeyUtils.HexStringToBytes(value), out cpuKey);
-		}
-
-		#endregion
-
-		public bool TryUpdate(byte[] value)
-		{
-			if (value.Length == 0x10)
-			{
-				Bytes = value;
-				return true;
-			}
-			return false;
-		}
-
-		public bool TryUpdate(string value)
-		{
-			return TryUpdate(CPUKeyUtils.HexStringToBytes(value));
+			cpukey = Parse(value);
+			return cpukey is not null;
 		}
 
 		/// <summary>
 		/// Sanity check to verify that a <see cref="CPUKey"/> object is valid.
 		/// </summary>
-		/// <param name="cpukey">The <see cref="CPUKey"/> object to validate.</param>
-		/// <returns>Returns <c>true</c> if the object is a valid CPUKey, <c>false</c> otherwise.</returns>
-		public bool IsValid()
-		{
-			return CPUKeyUtils.IsValid(this);
-		}
+		/// <returns>Returns true if the object is a valid CPUKey, otherwise false</returns>
+		public bool IsValid() => !data.IsEmpty;
 
 		/// <summary>
-		/// Converts a CPUKey into a byte[] array.
+		/// Returns a <seealso cref="ReadOnlySpan{T}"/> from the current CPUKey instance
 		/// </summary>
-		/// <returns>A byte[] array containing the CPUKey.</returns>
-		public byte[] ToByteArray()
-		{
-			return Bytes;
-		}
+		/// <returns>A <seealso cref="ReadOnlySpan{T}"/> created from the CPUKey object</returns>
+		public ReadOnlySpan<byte> ToSpan() => data.Span;
 
 		/// <summary>
-		/// Overrides base ToString() method.
+		/// Copies the CPUKey into a new <seealso cref="Array"/>.
 		/// </summary>
-		/// <returns>A UTF-16 encoded string representing the CPUKey.</returns>
-		public override string ToString()
-		{
-			return ToByteArray() is null
-				? String.Empty
-				: CPUKeyUtils.BytesToHexString(ToByteArray());
-		}
+		/// <returns>An <seealso cref="Array"/> containing the CPUKey</returns>
+		public byte[] ToArray() => IsValid() ? Array.Empty<byte>() : data.ToArray();
 
-		public override int GetHashCode()
-		{
-			return 1182642244 + EqualityComparer<byte[]>.Default.GetHashCode(ToByteArray());
-		}
+		/// <summary>
+		/// Returns the CPUKey as a <seealso cref="String"/>.
+		/// </summary>
+		/// <returns>A UTF-16 encoded <seealso cref="String"/> representing the CPUKey</returns>
+		public override string ToString() => IsValid() ? data.ToArray().BytesToHexString() : String.Empty;
 
-		public override bool Equals(object obj)
+		/// <inheritdoc/>
+		public override int GetHashCode() => data.GetHashCode();
+
+		/// <inheritdoc/>
+		public override bool Equals([NotNullWhen(true)] object? obj)
 		{
-			if (obj is CPUKey)
-				return Equals((CPUKey)obj);
-			else if (obj is byte[] || obj is string)
-				return Equals(obj);
-			else
+			if (obj is null)
 				return false;
+
+			if (obj is CPUKey cpukey)
+				return Equals(cpukey);
+
+			return false;
 		}
 
-		public bool Equals(CPUKey other) => EqualityComparer<byte[]>.Default.Equals(ToByteArray(), other.ToByteArray());
-		public bool Equals(byte[] other) => EqualityComparer<byte[]>.Default.Equals(ToByteArray(), other);
-		public bool Equals(string other) => EqualityComparer<string>.Default.Equals(ToString(), other);
+		/// <inheritdoc/>
+		public bool Equals([NotNullWhen(true)] CPUKey? other)
+		{
+			if (other is null)
+				return false;
 
-		public static bool operator ==(CPUKey key1, CPUKey key2) => key1.Equals(key2);
-		public static bool operator !=(CPUKey key1, CPUKey key2) => !(key1 == key2);
-		public static bool operator ==(CPUKey key1, byte[] key2) => key1.Equals(key2);
-		public static bool operator !=(CPUKey key1, byte[] key2) => !(key1 == key2);
-		public static bool operator ==(CPUKey key1, string key2) => key1.Equals(key2);
-		public static bool operator !=(CPUKey key1, string key2) => !(key1 == key2);
+			return other.data.Span.SequenceEqual(data.Span);
+		}
+
+		/// <summary>
+		/// Indicates whether the current object is equal to <paramref name="value"/>.
+		/// </summary>
+		/// <param name="value">The comparand as a <seealso cref="ReadOnlySpan{T}"/></param>
+		/// <returns></returns>
+		public bool Equals(ReadOnlySpan<byte> value) => value.SequenceEqual(data.Span);
+
+		/// <summary>
+		/// Indicates whether the current object is equal to <paramref name="value"/>.
+		/// </summary>
+		/// <param name="value">The comparand as a <seealso cref="String"/></param>
+		/// <returns></returns>
+		public bool Equals([NotNullWhen(true)] string? value) => String.Equals(data.ToArray().BytesToHexString(), value?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+		/// <inheritdoc/>
+		public static bool operator ==(CPUKey lhs, CPUKey rhs) => lhs.Equals(rhs);
+		/// <inheritdoc/>
+		public static bool operator !=(CPUKey lhs, CPUKey rhs) => !lhs.Equals(rhs);
+		/// <inheritdoc/>
+		public static bool operator ==(CPUKey lhs, ReadOnlySpan<byte> rhs) => lhs.Equals(rhs);
+		/// <inheritdoc/>
+		public static bool operator !=(CPUKey lhs, ReadOnlySpan<byte> rhs) => !lhs.Equals(rhs);
+		/// <inheritdoc/>
+		public static bool operator ==(CPUKey lhs, string rhs) => lhs.Equals(rhs);
+		/// <inheritdoc/>
+		public static bool operator !=(CPUKey lhs, string rhs) => !lhs.Equals(rhs);
 	}
 
 	/// <summary>
-	/// Static helper methods for <see cref="CPUKey"/> class.
+	/// Extention methods for <see cref="CPUKey"/>.
 	/// </summary>
 	public static class CPUKeyUtils
 	{
-		#region CPUKey Validation Methods
-
-		/// <summary>
-		/// Sanity check to check verify that a <see cref="CPUKey"/> object is valid.
-		/// </summary>
-		/// <param name="cpukey">The <see cref="CPUKey"/> object to validate.</param>
-		/// <returns>Returns <c>true</c> if the object is a valid CPUKey, <c>false</c> otherwise.</returns>
-		public static bool IsValid(this CPUKey cpukey)
-		{
-			return cpukey is null
-				|| cpukey.ToByteArray() is null
-				|| cpukey.ToByteArray().Length != 0x10
-				? false : true;
-		}
-
 		/// <summary>
 		/// Sanity check to check verify that a byte[] array containing a CPUKey is valid.
 		/// </summary>
 		/// <param name="value">The byte[] array representing a CPUKey.</param>
-		/// <returns>Returns <c>true</c> if the byte[] array is a valid CPUKey, <c>false</c> otherwise.</returns>
-		public static bool IsValid(this byte[] value)
-		{
-			if (value is null || value.Length != 0x10)
-				return false;
-
-			return true;
-		}
+		/// <returns>Returns true if the byte[] array is a valid CPUKey, false otherwise.</returns>
+		public static bool IsValid(ReadOnlySpan<byte> value) => value.Length == 0x10;
 
 		/// <summary>
 		/// Sanity check to check verify that a UTF-16 encoded string representing a CPUKey is valid.
 		/// </summary>
 		/// <param name="value">A UTF-16 encoded string representing a CPUKey in hexidecimal format.</param>
-		/// <returns>Returns <c>true</c> if the string represents a valid CPUKey, <c>false</c> otherwise</returns>
-		public static bool IsValid(this string value)
+		/// <returns>Returns true if the string represents a valid CPUKey, false otherwise</returns>
+		public static bool IsValid(ReadOnlySpan<char> value)
 		{
-			if (String.IsNullOrEmpty(value) || value.Length != 32)
+			var span = value.Trim();
+
+			if (span.Length != 0x20)
 				return false;
 
-			if (!Regex.IsMatch(value, "[a-fA-F0-9]{32}"))
-				return false;
+			//if (!Regex.IsMatch(span.ToString(), "[a-fA-F0-9]{32}"))
+			//	return false;
 
-			return true;
-		}
-
-		#endregion
-
-		#region Primitive Conversion Methods
-
-		/// <summary>
-		/// Compare two <c>byte[]</c> arrays for equality.
-		/// </summary>
-		/// <param name="array">A byte[] aray to be compared.</param>
-		/// <param name="targetArray">The target byte[] array to compare <paramref name="array"/> with.</param>
-		/// <returns></returns>
-		public static bool CompareBytes(byte[] array, byte[] targetArray)
-		{
-			if (array.Length != targetArray.Length)
-				return false;
-
-			for (int i = 0; i < array.Length; i++)
+			foreach (var ch in span)
 			{
-				if (array[i] != targetArray[i])
+				if (!Char.IsAscii(ch) || !Char.IsLetterOrDigit(ch))
 					return false;
 			}
 
@@ -266,8 +256,5 @@ namespace SK
 
 			return str;
 		}
-
-		#endregion
-
 	}
 }
