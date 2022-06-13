@@ -8,7 +8,6 @@
  * 
  */
 
-using System;
 using System.ComponentModel;
 using System.Net;
 
@@ -19,168 +18,147 @@ namespace SK.XboxKonnect
 	/// </summary>
 	public class Connection : INotifyPropertyChanged
 	{
-		static readonly object _lock = new object();
+		private static readonly object _lock = new object();
 
-		private IPEndPoint _ip = null;
-		private DateTime _firstPing = DateTime.Now;
-		private DateTime _lastPing = DateTime.Now;
-		private CPUKey _cpuKey = null;
-		private ConsoleType _consoleType = ConsoleType.None;
-		private ConnectionState _connectionState = ConnectionState.None;
-		private ConnectionType _connectionType = ConnectionType.None;
-		private string _name;
+		private IPEndPoint? _ep;
+		private CPUKey _cpuKey = CPUKey.None;
+		private string _name = String.Empty;
+		private ConsoleType _consoleType = ConsoleType.Unknown;
+		private ConnectionType _connectionType = ConnectionType.Unknown;
+		private ConnectionState _connectionState = ConnectionState.Unknown;
+		private DateTime _firstPing = DateTime.MaxValue;
+		private DateTime _lastPing = DateTime.MaxValue;
 
-		#region Public Properties
+		#region Connection Properties
 
 		/// <summary>
-		/// The connection's local network IP.
+		/// The connection's <seealso cref="IPAddress"/> on the local network.
 		/// </summary>
-		public IPEndPoint IP {
-			get => _ip;
-			internal set {
-				lock (_lock)
-					_ip = value;
-				NotifyPropertyChanged();
-			}
+		public IPAddress IP => EndPoint?.Address ?? IPAddress.None;
+
+		/// <summary>
+		/// The connection's <seealso cref="IPEndPoint"/> on the local network.
+		/// </summary>
+		public IPEndPoint? EndPoint
+		{
+			get => _ep;
+			internal set { lock (_lock) Set(ref _ep, value); }
 		}
 
 		/// <summary>
-		/// Console name (default is Jtag / XeDevkit)
+		/// The CPUKey for this connection. This is set by the consumer (typically through xbdm),
+		/// so as not to add additional dependencies to this API.
 		/// </summary>
-		public string Name {
+		public CPUKey CPUKey
+		{
+			get => _cpuKey;
+			set { lock (_lock) Set(ref _cpuKey, value); }
+		}
+
+		/// <summary>
+		/// Console name (default is Jtag / XeDevkit).
+		/// </summary>
+		public string Name
+		{
 			get => _name;
-			internal set {
-				lock (_lock)
-					_name = value;
-				NotifyPropertyChanged();
-			}
-		}
-
-		/// <summary>
-		/// Timestamp for when the connection was initially discovered.
-		/// </summary>
-		public DateTime FirstPing {
-			get => _firstPing;
-			internal set {
-				lock (_lock)
-					_firstPing = value;
-				NotifyPropertyChanged();
-			}
-		}
-
-		/// <summary>
-		/// Timestamp of the last received response from the connection.
-		/// </summary>
-		public DateTime LastPing {
-			get => _lastPing;
-			internal set {
-				lock (_lock)
-					_lastPing = value;
-				NotifyPropertyChanged();
-			}
-		}
-
-		/// <summary>
-		/// The network connection type for this connection (Bridged, LAN, WAN).
-		/// </summary>
-		public ConnectionType ConnectionType {
-			get => _connectionType;
-			set {
-				lock (_lock)
-					_connectionType = value;
-				NotifyPropertyChanged();
-			}
-		}
-
-		/// <summary>
-		/// The current state of this connection (Online, Offline).
-		/// </summary>
-		public ConnectionState ConnectionState {
-			get => _connectionState;
-			internal set {
-				lock (_lock)
-					_connectionState = value;
-				NotifyPropertyChanged();
-			}
+			internal set { lock (_lock) Set(ref _name, value); }
 		}
 
 		/// <summary>
 		/// The type of device this connection represents (Jtag, Devkit).
 		/// </summary>
-		public ConsoleType ConsoleType {
+		public ConsoleType ConsoleType
+		{
 			get => _consoleType;
-			internal set {
-				lock (_lock)
-					_consoleType = value;
-				NotifyPropertyChanged();
-			}
+			set { lock (_lock) Set(ref _consoleType, value); }
 		}
 
 		/// <summary>
-		/// The CPUKey for this connection.
+		/// The network'd type for this connection (Bridged, LAN, WAN).
+		/// WAN is currently not being detected, and will return LAN by default.
 		/// </summary>
-		public CPUKey CPUKey {
-			get => _cpuKey;
-			set {
-				lock (_lock)
-					_cpuKey = value;
-				NotifyPropertyChanged();
-			}
+		public ConnectionType ConnectionType
+		{
+			get => _connectionType;
+			internal set { lock (_lock) Set(ref _connectionType, value); }
+		}
+
+		/// <summary>
+		/// The last known state of this connection on the local network (Online, Offline).
+		/// </summary>
+		public ConnectionState ConnectionState
+		{
+			get => _connectionState;
+			internal set { lock (_lock) Set(ref _connectionState, value); }
+		}
+
+		/// <summary>
+		/// Timestamp for when the connection was initially discovered.
+		/// </summary>
+		public DateTime FirstPing
+		{
+			get => _firstPing;
+			internal set { lock (_lock) Set(ref _firstPing, value); }
+		}
+
+		/// <summary>
+		/// Timestamp of the last received response from the connection.
+		/// </summary>
+		public DateTime LastPing
+		{
+			get => _lastPing;
+			internal set { lock (_lock) Set(ref _lastPing, value); }
 		}
 
 		#endregion
 
 		/// <summary>
-		/// Default constructor, initializes <see cref="Connection"/> class with default values.
-		/// </summary>
-		public Connection()
-		{ }
-
-		/// <summary>
-		/// Public factory method, initializes <see cref="Connection"/> class using default values.
-		/// </summary>
-		/// <returns></returns>
-		public static Connection NewXboxConnection()
-		{
-			return new Connection();
-		}
-
-		/// <summary>
 		/// Equality comparer between two instances of the <see cref="Connection"/> class.
-		/// If both objects have valid CPUKeys, equality comparison is based on <see cref="CPUKey"/>; 
+		/// If both objects have valid CPUKeys, equality comparison is based on <see cref="CPUKey"/>;
 		/// otherwise, equality is based on <see cref="IP"/>.
 		/// </summary>
-		/// <param name="obj">Object to compare.</param>
-		/// <returns>Returns true if <see cref="IP"/> matches.</returns>
-		public bool Equals(Connection obj)
+		/// <param name="other">Another <see cref="Connection"/> to compare for equality.</param>
+		/// <returns>Returns true if <see cref="CPUKey"/> or <see cref="IP"/> matches.</returns>
+		public bool Equals(Connection other)
 		{
-			if (obj.CPUKey is null || CPUKey is null)
-				return obj.IP == IP;
-			return obj.CPUKey == CPUKey;
+			if (other.CPUKey is null || CPUKey is null)
+				return other.IP == IP;
+			return other.CPUKey == CPUKey;
 		}
 
 		/// <summary>
-		/// Overrides base ToString() method.
+		/// Overrides base ToString() method, returning a string in the form of: <c>Jtag (192.168.0.69)</c>
 		/// </summary>
 		/// <returns></returns>
-		public override string ToString()
-		{
-			return String.Format("{0} [{1}, {2}] - {3}", IP, ConnectionState, ConnectionType, Name);
-		}
-
-		#region PropertyChanged Events
+		public override string ToString() => $"{Name} ({IP})";
 
 		/// <summary>
 		/// Event Handler for <seealso cref="INotifyPropertyChanged"/>.
 		/// </summary>
-		public event PropertyChangedEventHandler PropertyChanged;
+		public event PropertyChangedEventHandler? PropertyChanged;
 
-		private void NotifyPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = "")
+		/// <summary>
+		/// Notifies the <see cref="PropertyChanged"/> event handler when a property value has changed.
+		/// </summary>
+		/// <param name="propertyName"></param>
+		protected void OnPropertyChanged(string? propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+		/// <summary>
+		/// Sets the value of <paramref name="field"/> to <paramref name="value"/>, raising the <see cref="OnPropertyChanged"/> event notification if the old and new values are not equal.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="field">The field that stores this Property's value</param>
+		/// <param name="value">The value to to save</param>
+		/// <param name="propertyName">The name of the Property being changed, provided by the compiler</param>
+		/// <returns>true if <paramref name="value"/> does not equal the current value in <paramref name="field"/>, otherwise false.</returns>
+		protected bool Set<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = "")
 		{
-			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+			if (EqualityComparer<T>.Default.Equals(field, value))
+				return false;
+			field = value;
+			OnPropertyChanged(propertyName);
+			return true;
 		}
-
-		#endregion
 
 	}
 }
