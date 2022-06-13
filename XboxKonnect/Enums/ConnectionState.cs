@@ -9,6 +9,8 @@
  * 
  */
 
+using System;
+
 namespace SK.XboxKonnect
 {
 	/// <summary>
@@ -19,7 +21,13 @@ namespace SK.XboxKonnect
 		/// <summary>
 		/// Initial connection type upon discovery.
 		/// </summary>
-		None = 0,
+		Unknown = 0,
+
+		/// <summary>
+		/// This enum member is obsolete. Use <see cref="Unknown"/> instead.
+		/// </summary>
+		[Obsolete("This enum member is obsolete. Use ConnectionState.Unknown instead.", false)]
+		None = Unknown,
 
 		/// <summary>
 		/// Console is offline.

@@ -9,6 +9,8 @@
  * 
  */
 
+using System;
+
 namespace SK.XboxKonnect
 {
 	// TODO Add distinction between wifi/network/bridged connections
@@ -21,7 +23,13 @@ namespace SK.XboxKonnect
 		/// <summary>
 		/// No connection.
 		/// </summary>
-		None = 0,
+		Unknown = 0,
+
+		/// <summary>
+		/// This enum member is obsolete. Use <see cref="Unknown"/> instead.
+		/// </summary>
+		[Obsolete("This enum member is obsolete. Use ConnectionType.Unknown instead.", false)]
+		None = Unknown,
 
 		/// <summary>
 		/// Console is connected on the Local Area Network (wired connection).
