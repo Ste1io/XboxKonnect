@@ -21,19 +21,19 @@ namespace SK
 		internal Memory<byte> data = Memory<byte>.Empty;
 
 		/// <summary>
-		/// Returns an empty/invalid <see cref="CPUKey"/> object.
+		/// Returns an empty/invalid CPUKey object.
 		/// </summary>
 		public static readonly CPUKey None = new();
 
 		/// <summary>
-		/// Initializes a new <see cref="CPUKey"/> instance that is empty (and invalid).
+		/// Initializes a new CPUKey instance that is empty (and invalid).
 		/// </summary>
 		public CPUKey() { }
 
 		/// <summary>
-		/// Initializes a new <see cref="CPUKey"/> instance, copying the underlying data from <paramref name="other"/>.
+		/// Initializes a new CPUKey instance, copying the underlying data from <paramref name="other"/>.
 		/// </summary>
-		/// <param name="other">A <see cref="CPUKey"/> instance</param>
+		/// <param name="other">A CPUKey instance</param>
 		/// <exception cref="ArgumentNullException"><paramref name="other"/> is null</exception>
 		public CPUKey(CPUKey other)
 		{
@@ -45,7 +45,7 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Initializes a new <see cref="CPUKey"/> instance from an <seealso cref="Array"/>.
+		/// Initializes a new CPUKey instance from an <seealso cref="Array"/>.
 		/// </summary>
 		/// <param name="value">A <seealso cref="ReadOnlySpan{T}"/> representation of an <seealso cref="Array"/></param>
 		/// <exception cref="ArgumentException"><paramref name="value"/> length is not 0x10 (16)</exception>
@@ -59,10 +59,10 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Creates a new <see cref="CPUKey"/> instance from <paramref name="value"/>.
+		/// Creates a new CPUKey instance from <paramref name="value"/>.
 		/// </summary>
 		/// <param name="value">A <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/></param>
-		/// <returns>A new instance of <see cref="CPUKey"/></returns>
+		/// <returns>A new instance of CPUKey</returns>
 		public static CPUKey? Parse(ReadOnlySpan<byte> value)
 		{
 			if (value.Length != 0x10)
@@ -71,10 +71,10 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Creates a new <see cref="CPUKey"/> instance from <paramref name="value"/>.
+		/// Creates a new CPUKey instance from <paramref name="value"/>.
 		/// </summary>
 		/// <param name="value">A CPUKey <seealso cref="String"/></param>
-		/// <returns>A new instance of <see cref="CPUKey"/></returns>
+		/// <returns>A new instance of CPUKey</returns>
 		public static CPUKey? Parse(string? value)
 		{
 			if (value is null || !CPUKeyUtils.IsValid(value))
@@ -83,11 +83,11 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Verify <paramref name="value"/> is a valid CPUKey, and initialize a new <see cref="CPUKey"/> instance at <paramref name="cpukey"/>
+		/// Verify <paramref name="value"/> is a valid CPUKey, and initialize a new CPUKey instance at <paramref name="cpukey"/>
 		/// </summary>
 		/// <param name="value">The <seealso cref="Array"/> to validate and parse</param>
-		/// <param name="cpukey">A new <see cref="CPUKey"/> instance</param>
-		/// <returns></returns>
+		/// <param name="cpukey">A new CPUKey instance</param>
+		/// <returns>true if <paramref name="value"/> is a valid CPUKey, otherwise false</returns>
 		public static bool TryParse([NotNullWhen(true)] ReadOnlySpan<byte> value, [NotNullWhen(true)] out CPUKey? cpukey)
 		{
 			cpukey = Parse(value);
@@ -95,11 +95,11 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Verify <paramref name="value"/> is a valid CPUKey, and initialize a new <see cref="CPUKey"/> instance at <paramref name="cpukey"/>
+		/// Verify <paramref name="value"/> is a valid CPUKey, and initialize a new CPUKey instance at <paramref name="cpukey"/>
 		/// </summary>
 		/// <param name="value">The <seealso cref="String"/> to validate and parse</param>
-		/// <param name="cpukey">A new <see cref="CPUKey"/> instance</param>
-		/// <returns></returns>
+		/// <param name="cpukey">A new CPUKey instance</param>
+		/// <returns>true if <paramref name="value"/> is a valid CPUKey, otherwise false</returns>
 		public static bool TryParse([NotNullWhen(true)] string? value, [NotNullWhen(true)] out CPUKey? cpukey)
 		{
 			cpukey = Parse(value);
@@ -107,7 +107,7 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Sanity check to verify that a <see cref="CPUKey"/> object is valid.
+		/// Sanity check to verify that a CPUKey object is valid.
 		/// </summary>
 		/// <returns>Returns true if the object is a valid CPUKey, otherwise false</returns>
 		public bool IsValid() => !data.IsEmpty;
@@ -183,7 +183,7 @@ namespace SK
 	}
 
 	/// <summary>
-	/// Extention methods for <see cref="CPUKey"/>.
+	/// Extention methods for CPUKey.
 	/// </summary>
 	public static class CPUKeyUtils
 	{
