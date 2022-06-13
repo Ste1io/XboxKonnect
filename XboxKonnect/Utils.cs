@@ -8,41 +8,27 @@
  * 
  */
 
-using System;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 
 namespace SK.XboxKonnect
 {
-	/// <summary>
-	/// Utility methods for <see cref="ConsoleScanner"/> class.
-	/// </summary>
-	public static class Utils
+	internal static class Utils
 	{
-		internal static IPEndPoint GetHostEndPoint()
+		internal static IPEndPoint? GetHostEndPoint()
 		{
-			using (Socket udpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
-			{
-				udpSocket.Connect("10.0.20.20", 31337);
-				return udpSocket.LocalEndPoint as IPEndPoint;
-			}
+			using Socket udpSocket = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+			udpSocket.Connect("10.0.20.20", 31337);
+			return udpSocket.LocalEndPoint as IPEndPoint;
 		}
 
-		internal static string GetSubnetRange(IPEndPoint endpoint)
+		internal static IPAddress GetBroadcastAddress(this IPAddress ip)
 		{
-			return String.Join(".", endpoint.Address.GetAddressBytes().Take(3));
-		}
-
-		/// <summary>
-		/// Static construction helper to simplify object creation of <see cref="ConsoleScanner"/> class.
-		/// </summary>
-		/// <param name="scanner">The <see cref="ConsoleScanner"/> object being constructed.</param>
-		/// <returns></returns>
-		public static ConsoleScanner StartScanning(this ConsoleScanner scanner)
-		{
-			scanner.Start();
-			return scanner;
+			ReadOnlySpan<byte> span = ip.GetAddressBytes();
+			uint addr = MemoryMarshal.Read<uint>(span);
+			uint mask = 0x00FFFFFF;
+			return new IPAddress(addr | ~(mask));
 		}
 	}
 }
