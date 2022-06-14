@@ -9,14 +9,13 @@
  */
 
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace SK
 {
 	/// <summary>
-	/// Represents a 32-character Xbox CPUKey and provides convenience methods for parsing, validating, and converting.
-	/// See <see cref="CPUKeyUtils"/> class for static helper methods.
+	/// Encapsulates a 32-character Xbox CPUKey, and provides parsing, validation, and conversion methods.
 	/// </summary>
 	public class CPUKey : IEquatable<CPUKey>
 	{
@@ -177,15 +176,15 @@ namespace SK
 		/// Indicates whether the current object is equal to <paramref name="value"/>.
 		/// </summary>
 		/// <param name="value">The comparand as a <seealso cref="ReadOnlySpan{T}"/></param>
-		/// <returns></returns>
+		/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
 		public bool Equals(ReadOnlySpan<byte> value) => value.SequenceEqual(data.Span);
 
 		/// <summary>
 		/// Indicates whether the current object is equal to <paramref name="value"/>.
 		/// </summary>
 		/// <param name="value">The comparand as a <seealso cref="String"/></param>
-		/// <returns></returns>
 		public bool Equals([NotNullWhen(true)] string? value) => String.Equals(data.ToArray().BytesToHexString(), value?.Trim(), StringComparison.OrdinalIgnoreCase);
+		/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
 
 		/// <inheritdoc/>
 		public static bool operator ==(CPUKey lhs, CPUKey rhs) => lhs.Equals(rhs);
