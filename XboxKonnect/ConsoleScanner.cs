@@ -289,8 +289,6 @@ namespace SK.XboxKonnect
 					ConsoleType = ConsoleType.Jtag,
 					ConnectionType = endpoint.Address.GetAddressBytes()[2].Equals("137") ? ConnectionType.Bridged : ConnectionType.LAN,
 					ConnectionState = ConnectionState.Online,
-					FirstPing = DateTime.Now,
-					LastPing = DateTime.Now,
 				});
 			}
 		}

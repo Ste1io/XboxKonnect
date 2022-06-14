@@ -26,8 +26,8 @@ namespace SK.XboxKonnect
 		private ConsoleType _consoleType = ConsoleType.Unknown;
 		private ConnectionType _connectionType = ConnectionType.Unknown;
 		private ConnectionState _connectionState = ConnectionState.Unknown;
-		private DateTime _firstPing = DateTime.MaxValue;
-		private DateTime _lastPing = DateTime.MaxValue;
+		private DateTime _firstPing = DateTime.Now;
+		private DateTime _lastPing = DateTime.Now;
 
 		#region Connection Properties
 
