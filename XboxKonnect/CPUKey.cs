@@ -82,7 +82,7 @@ namespace SK
 		/// <returns>A new instance of CPUKey</returns>
 		public static CPUKey? Parse(ReadOnlySpan<char> value)
 		{
-			if (value is null || !CPUKeyUtils.IsValid(value))
+			if (!SanityCheck(value))
 				return default;
 			return new CPUKey(Convert.FromHexString(value));
 		}
@@ -200,31 +200,16 @@ namespace SK
 		/// <inheritdoc/>
 		public static bool operator !=(CPUKey lhs, string rhs) => !lhs.Equals(rhs);
 
-		/// <summary>
-		/// Sanity check to check verify that a byte[] array containing a CPUKey is valid.
-		/// </summary>
-		/// <param name="value">The byte[] array representing a CPUKey.</param>
-		/// <returns>Returns true if the byte[] array is a valid CPUKey, false otherwise.</returns>
-		public static bool IsValid(ReadOnlySpan<byte> value) => value.Length == CPUKey.kValidByteLen;
+		internal static bool IsHexDigit(char value) => value is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
 
-		/// <summary>
-		/// Sanity check to check verify that a UTF-16 encoded string representing a CPUKey is valid.
-		/// </summary>
-		/// <param name="value">A UTF-16 encoded string representing a CPUKey in hexidecimal format.</param>
-		/// <returns>Returns true if the string represents a valid CPUKey, false otherwise</returns>
-		public static bool IsValid(ReadOnlySpan<char> value)
+		internal static bool SanityCheck(ReadOnlySpan<char> value)
 		{
-			var span = value.Trim();
-
-			if (span.Length != 0x20)
+			if (value.Length != kValidCharLen)
 				return false;
 
-			//if (!Regex.IsMatch(span.ToString(), "[a-fA-F0-9]{32}"))
-			//	return false;
-
-			foreach (var ch in span)
+			for (int i = 0; i < kValidCharLen; i++)
 			{
-				if (!Char.IsAscii(ch) || !Char.IsLetterOrDigit(ch))
+				if (!IsHexDigit(value[i]))
 					return false;
 			}
 
