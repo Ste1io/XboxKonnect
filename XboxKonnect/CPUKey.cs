@@ -129,6 +129,12 @@ namespace SK
 				return false;
 			}
 
+			if (!ValidateECD())
+			{
+				System.Diagnostics.Trace.WriteLine($"Invalid CPUKey: Failed ECD check");
+				return false;
+			}
+
 			return true;
 		}
 
@@ -212,6 +218,47 @@ namespace SK
 			var hammingWeight = BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & kECDMask);
 
 			return hammingWeight == 53;
+		}
+
+		internal bool ValidateECD()
+		{
+			Span<byte> span = stackalloc byte[kValidByteLen];
+			data.Span.CopyTo(span);
+			ComputeECD(span);
+			return span.SequenceEqual(data.Span);
+		}
+
+		private static void ComputeECD(Span<byte> cpukey)
+		{
+			//uint mask  = 000003FF; // 0xFFFFFFFFFF030000 reversed
+
+			// accumulator vars
+			uint acc1 = 0;
+			uint acc2 = 0;
+
+			for (var i = 0; i < 128; i++, acc1 >>= 1) // foreach (bit in cpukey)
+			{
+				var bTmp = cpukey[i >> 3];
+				uint dwTmp = (uint)((bTmp >> (i & 7)) & 1);
+
+				if (i < 0x6A) // if (i < 106) // (hammingweight * 2)
+				{
+					acc1 = dwTmp ^ acc1;
+					if ((acc1 & 1) > 0)
+						acc1 ^= 0x360325;
+					acc2 = dwTmp ^ acc2;
+				}
+				else if (i < 0x7F) // else if (i != lastbit) // (127)
+				{
+					if (dwTmp != (acc1 & 1))
+						cpukey[(i >> 3)] = (byte)((1 << (i & 7)) ^ (bTmp & 0xFF));
+					acc2 = (acc1 & 1) ^ acc2;
+				}
+				else if (dwTmp != acc2)
+				{
+					cpukey[0xF] = (byte)((0x80 ^ bTmp) & 0xFF); // ((128 ^ bTmp) & 0xFF)
+				}
+			}
 		}
 
 		internal static bool ValidateString(ReadOnlySpan<char> value)
