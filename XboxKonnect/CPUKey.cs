@@ -82,7 +82,7 @@ namespace SK
 		/// <returns>A new instance of CPUKey</returns>
 		public static CPUKey? Parse(ReadOnlySpan<char> value)
 		{
-			if (!SanityCheck(value))
+			if (!ValidateString(value))
 				return default;
 			return new CPUKey(Convert.FromHexString(value));
 		}
@@ -120,15 +120,10 @@ namespace SK
 			if (data.IsEmpty)
 				return false;
 
-			Span<byte> bytes = stackalloc byte[kValidByteLen];
-			data.Span.CopyTo(bytes);
-			bytes[..sizeof(ulong)].Reverse();
-			bytes[sizeof(ulong)..].Reverse();
+			if (!ValidateHammingWeight())
+				return false;
 
-			Span<ulong> parts = MemoryMarshal.Cast<byte, ulong>(bytes);
-			var hammingWeight = BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & kECDMask);
-
-			return hammingWeight == 53;
+			return true;
 		}
 
 		/// <summary>
@@ -200,9 +195,20 @@ namespace SK
 		/// <inheritdoc/>
 		public static bool operator !=(CPUKey lhs, string rhs) => !lhs.Equals(rhs);
 
-		internal static bool IsHexDigit(char value) => value is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
+		internal bool ValidateHammingWeight()
+		{
+			Span<byte> bytes = stackalloc byte[kValidByteLen];
+			data.Span.CopyTo(bytes);
+			bytes[..sizeof(ulong)].Reverse();
+			bytes[sizeof(ulong)..].Reverse();
 
-		internal static bool SanityCheck(ReadOnlySpan<char> value)
+			Span<ulong> parts = MemoryMarshal.Cast<byte, ulong>(bytes);
+			var hammingWeight = BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & kECDMask);
+
+			return hammingWeight == 53;
+		}
+
+		internal static bool ValidateString(ReadOnlySpan<char> value)
 		{
 			if (value.Length != kValidCharLen)
 				return false;
@@ -215,5 +221,7 @@ namespace SK
 
 			return true;
 		}
+
+		internal static bool IsHexDigit(char value) => value is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
 	}
 }
