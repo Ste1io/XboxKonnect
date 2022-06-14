@@ -21,7 +21,7 @@ namespace SK.XboxKonnect
 		private static readonly object _lock = new object();
 
 		private IPEndPoint? _ep;
-		private CPUKey _cpuKey = CPUKey.None;
+		private CPUKey _cpuKey = CPUKey.Empty;
 		private string _name = String.Empty;
 		private ConsoleType _consoleType = ConsoleType.Unknown;
 		private ConnectionType _connectionType = ConnectionType.Unknown;

@@ -27,7 +27,7 @@ namespace SK
 		/// <summary>
 		/// Returns an empty/invalid CPUKey object.
 		/// </summary>
-		public static readonly CPUKey None = new();
+		public static readonly CPUKey Empty = new();
 
 		/// <summary>
 		/// Initializes a new CPUKey instance that is empty (and invalid).
