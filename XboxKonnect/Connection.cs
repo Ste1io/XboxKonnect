@@ -61,7 +61,7 @@ namespace SK.XboxKonnect
 		public string Name
 		{
 			get => _name;
-			internal set { lock (_lock) Set(ref _name, value); }
+			set { lock (_lock) Set(ref _name, value); }
 		}
 
 		/// <summary>
@@ -80,7 +80,7 @@ namespace SK.XboxKonnect
 		public ConnectionType ConnectionType
 		{
 			get => _connectionType;
-			internal set { lock (_lock) Set(ref _connectionType, value); }
+			set { lock (_lock) Set(ref _connectionType, value); }
 		}
 
 		/// <summary>
