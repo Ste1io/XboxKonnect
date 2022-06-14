@@ -118,10 +118,16 @@ namespace SK
 		public bool IsValid()
 		{
 			if (data.IsEmpty)
+			{
+				System.Diagnostics.Trace.WriteLine($"Invalid CPUKey: No data");
 				return false;
+			}
 
 			if (!ValidateHammingWeight())
+			{
+				System.Diagnostics.Trace.WriteLine($"Invalid CPUKey: Failed hamming weight check");
 				return false;
+			}
 
 			return true;
 		}
@@ -197,12 +203,12 @@ namespace SK
 
 		internal bool ValidateHammingWeight()
 		{
-			Span<byte> bytes = stackalloc byte[kValidByteLen];
-			data.Span.CopyTo(bytes);
-			bytes[..sizeof(ulong)].Reverse();
-			bytes[sizeof(ulong)..].Reverse();
+			Span<byte> span = stackalloc byte[kValidByteLen];
+			data.Span.CopyTo(span);
+			span[..sizeof(ulong)].Reverse();
+			span[sizeof(ulong)..].Reverse();
 
-			Span<ulong> parts = MemoryMarshal.Cast<byte, ulong>(bytes);
+			Span<ulong> parts = MemoryMarshal.Cast<byte, ulong>(span);
 			var hammingWeight = BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & kECDMask);
 
 			return hammingWeight == 53;
