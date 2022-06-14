@@ -22,6 +22,7 @@ namespace SK
 		private readonly Memory<byte> data = Memory<byte>.Empty;
 
 		internal static int kValidByteLen = 0x10;
+		internal static int kValidCharLen = 0x20;
 		internal static ulong kECDMask = 0xFFFFFFFFFF030000;
 
 		/// <summary>
@@ -79,11 +80,11 @@ namespace SK
 		/// </summary>
 		/// <param name="value">A CPUKey <seealso cref="String"/></param>
 		/// <returns>A new instance of CPUKey</returns>
-		public static CPUKey? Parse(string? value)
+		public static CPUKey? Parse(ReadOnlySpan<char> value)
 		{
 			if (value is null || !CPUKeyUtils.IsValid(value))
 				return default;
-			return new CPUKey(CPUKeyUtils.HexStringToBytes(value));
+			return new CPUKey(Convert.FromHexString(value));
 		}
 
 		/// <summary>
@@ -140,13 +141,13 @@ namespace SK
 		/// Copies the CPUKey into a new <seealso cref="Array"/>.
 		/// </summary>
 		/// <returns>An <seealso cref="Array"/> containing the CPUKey</returns>
-		public byte[] ToArray() => IsValid() ? Array.Empty<byte>() : data.ToArray();
+		public byte[] ToArray() => data.ToArray();
 
 		/// <summary>
 		/// Returns the CPUKey as a <seealso cref="String"/>.
 		/// </summary>
 		/// <returns>A UTF-16 encoded <seealso cref="String"/> representing the CPUKey</returns>
-		public override string ToString() => IsValid() ? data.ToArray().BytesToHexString() : String.Empty;
+		public override string ToString() => Convert.ToHexString(data.Span);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => data.GetHashCode();
@@ -183,8 +184,8 @@ namespace SK
 		/// Indicates whether the current object is equal to <paramref name="value"/>.
 		/// </summary>
 		/// <param name="value">The comparand as a <seealso cref="String"/></param>
-		public bool Equals([NotNullWhen(true)] string? value) => String.Equals(data.ToArray().BytesToHexString(), value?.Trim(), StringComparison.OrdinalIgnoreCase);
 		/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
+		public bool Equals([NotNullWhen(true)] string? value) => String.Equals(Convert.ToHexString(data.Span), value?.Trim(), StringComparison.OrdinalIgnoreCase);
 
 		/// <inheritdoc/>
 		public static bool operator ==(CPUKey lhs, CPUKey rhs) => lhs.Equals(rhs);
@@ -198,13 +199,7 @@ namespace SK
 		public static bool operator ==(CPUKey lhs, string rhs) => lhs.Equals(rhs);
 		/// <inheritdoc/>
 		public static bool operator !=(CPUKey lhs, string rhs) => !lhs.Equals(rhs);
-	}
 
-	/// <summary>
-	/// Extention methods for CPUKey.
-	/// </summary>
-	public static class CPUKeyUtils
-	{
 		/// <summary>
 		/// Sanity check to check verify that a byte[] array containing a CPUKey is valid.
 		/// </summary>
@@ -234,45 +229,6 @@ namespace SK
 			}
 
 			return true;
-		}
-
-		/// <summary>
-		/// Converts a string of hexidecimal characters represented in UTF-16 encoding to a byte[] array.
-		/// </summary>
-		/// <param name="hexString">A string representation of hexidecimal byte values.</param>
-		/// <returns></returns>
-		public static byte[] HexStringToBytes(this string hexString)
-		{
-			byte[] returnArray = new byte[hexString.Length / 2];
-
-			for (int i = 0; i < hexString.Length; i += 2)
-			{
-				try
-				{
-					returnArray[i / 2] = Convert.ToByte(hexString.Substring(i, 2), 16);
-				}
-				catch
-				{
-					returnArray[i / 2] = 0;
-				}
-			}
-
-			return returnArray;
-		}
-
-		/// <summary>
-		/// Converts a byte[] array into a string representation of hexidecimal values in UTF-16 encoding.
-		/// </summary>
-		/// <param name="buffer">A byte[] array.</param>
-		/// <returns></returns>
-		public static string BytesToHexString(this byte[] buffer)
-		{
-			string str = String.Empty;
-
-			foreach (var b in buffer)
-				str = str + b.ToString("X2");
-
-			return str;
 		}
 	}
 }
