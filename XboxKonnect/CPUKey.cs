@@ -19,7 +19,7 @@ namespace SK
 	/// </summary>
 	public class CPUKey : IEquatable<CPUKey>
 	{
-		private Memory<byte> data = Memory<byte>.Empty;
+		private readonly Memory<byte> data = Memory<byte>.Empty;
 
 		internal static int kValidByteLen = 0x10;
 		internal static ulong kECDMask = 0xFFFFFFFFFF030000;
