@@ -1,11 +1,11 @@
 ﻿/*
  * CPUKey class
- * 
+ *
  * Created: 01/20/2020
  * Author:  Daniel McClintock (alias: Stelio Kontos)
- * 
+ *
  * Copyright (c) 2020 Daniel McClintock
- * 
+ *
  */
 
 using System.Diagnostics.CodeAnalysis;
@@ -26,12 +26,12 @@ namespace SK
 		internal static ulong kECDMask = 0xFFFFFFFFFF030000;
 
 		/// <summary>
-		/// Returns an empty/invalid CPUKey object.
+		/// Returns an empty CPUKey object.
 		/// </summary>
 		public static readonly CPUKey Empty = new();
 
 		/// <summary>
-		/// Initializes a new CPUKey instance that is empty (and invalid).
+		/// Initializes a new instance as an empty CPUKey. See also <see cref="Empty"/>.
 		/// </summary>
 		public CPUKey() { }
 
@@ -50,9 +50,9 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Initializes a new CPUKey instance from an <seealso cref="Array"/>.
+		/// Initializes a new CPUKey instance from an array.
 		/// </summary>
-		/// <param name="value">A <seealso cref="ReadOnlySpan{T}"/> representation of an <seealso cref="Array"/></param>
+		/// <param name="value">A <seealso cref="ReadOnlySpan{T}"/> representation of a byte array</param>
 		/// <exception cref="ArgumentException"><paramref name="value"/> length is not 0x10 (16)</exception>
 		public CPUKey(ReadOnlySpan<byte> value)
 		{
@@ -64,10 +64,10 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Creates a new CPUKey instance from <paramref name="value"/>.
+		/// Creates a new CPUKey instance from a byte array.
 		/// </summary>
-		/// <param name="value">A <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/></param>
-		/// <returns>A new instance of CPUKey</returns>
+		/// <param name="value">A <seealso cref="ReadOnlySpan{T}"/> representation of a byte array</param>
+		/// <returns>A new CPUKey object</returns>
 		public static CPUKey? Parse(ReadOnlySpan<byte> value)
 		{
 			if (value.Length != kValidByteLen)
@@ -76,10 +76,10 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Creates a new CPUKey instance from <paramref name="value"/>.
+		/// Creates a new CPUKey instance from a <seealso cref="String"/>.
 		/// </summary>
-		/// <param name="value">A CPUKey <seealso cref="String"/></param>
-		/// <returns>A new instance of CPUKey</returns>
+		/// <param name="value">A CPUKey <seealso cref="ReadOnlySpan{T}"/> representation of a <seealso cref="String"/></param>
+		/// <returns>A new CPUKey object</returns>
 		public static CPUKey? Parse(ReadOnlySpan<char> value)
 		{
 			if (!ValidateString(value))
@@ -88,7 +88,7 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Verify <paramref name="value"/> is a valid CPUKey, and initialize a new CPUKey instance at <paramref name="cpukey"/>
+		/// Validates the given CPUKey byte array, initializing a new CPUKey instance at <paramref name="cpukey"/>
 		/// </summary>
 		/// <param name="value">The <seealso cref="Array"/> to validate and parse</param>
 		/// <param name="cpukey">A new CPUKey instance</param>
@@ -100,7 +100,7 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Verify <paramref name="value"/> is a valid CPUKey, and initialize a new CPUKey instance at <paramref name="cpukey"/>
+		/// Validates the given CPUKey <seealso cref="String"/>, initializing a new CPUKey instance at <paramref name="cpukey"/>
 		/// </summary>
 		/// <param name="value">The <seealso cref="String"/> to validate and parse</param>
 		/// <param name="cpukey">A new CPUKey instance</param>
@@ -112,7 +112,7 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Sanity check to verify that a CPUKey object is valid.
+		/// Validates a CPUKey object using hamming weight verification and ECD checks.
 		/// </summary>
 		/// <returns>Returns true if the object is a valid CPUKey, otherwise false</returns>
 		public bool IsValid()
@@ -145,13 +145,13 @@ namespace SK
 		public ReadOnlySpan<byte> ToSpan() => data.Span;
 
 		/// <summary>
-		/// Copies the CPUKey into a new <seealso cref="Array"/>.
+		/// Copies the CPUKey into a new byte array.
 		/// </summary>
 		/// <returns>An <seealso cref="Array"/> containing the CPUKey</returns>
 		public byte[] ToArray() => data.ToArray();
 
 		/// <summary>
-		/// Returns the CPUKey as a <seealso cref="String"/>.
+		/// Returns the <seealso cref="String"/> representation of the CPUKey object.
 		/// </summary>
 		/// <returns>A UTF-16 encoded <seealso cref="String"/> representing the CPUKey</returns>
 		public override string ToString() => Convert.ToHexString(data.Span);
@@ -171,7 +171,11 @@ namespace SK
 			return false;
 		}
 
-		/// <inheritdoc/>
+		/// <summary>
+		/// Indicates whether the current object is equal to <paramref name="other"/>.
+		/// </summary>
+		/// <param name="other">The comparand as a <see cref="CPUKey"/></param>
+		/// <returns>true if the CPUKey instance is equal to <paramref name="other"/>, otherwise false</returns>
 		public bool Equals([NotNullWhen(true)] CPUKey? other)
 		{
 			if (other is null)
@@ -183,7 +187,7 @@ namespace SK
 		/// <summary>
 		/// Indicates whether the current object is equal to <paramref name="value"/>.
 		/// </summary>
-		/// <param name="value">The comparand as a <seealso cref="ReadOnlySpan{T}"/></param>
+		/// <param name="value">The comparand as a <seealso cref="ReadOnlySpan{T}"/> or byte array</param>
 		/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
 		public bool Equals(ReadOnlySpan<byte> value) => value.SequenceEqual(data.Span);
 
@@ -194,17 +198,11 @@ namespace SK
 		/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
 		public bool Equals([NotNullWhen(true)] string? value) => String.Equals(Convert.ToHexString(data.Span), value?.Trim(), StringComparison.OrdinalIgnoreCase);
 
-		/// <inheritdoc/>
 		public static bool operator ==(CPUKey lhs, CPUKey rhs) => lhs.Equals(rhs);
-		/// <inheritdoc/>
 		public static bool operator !=(CPUKey lhs, CPUKey rhs) => !lhs.Equals(rhs);
-		/// <inheritdoc/>
 		public static bool operator ==(CPUKey lhs, ReadOnlySpan<byte> rhs) => lhs.Equals(rhs);
-		/// <inheritdoc/>
 		public static bool operator !=(CPUKey lhs, ReadOnlySpan<byte> rhs) => !lhs.Equals(rhs);
-		/// <inheritdoc/>
 		public static bool operator ==(CPUKey lhs, string rhs) => lhs.Equals(rhs);
-		/// <inheritdoc/>
 		public static bool operator !=(CPUKey lhs, string rhs) => !lhs.Equals(rhs);
 
 		internal bool ValidateHammingWeight()
@@ -228,7 +226,7 @@ namespace SK
 			return span.SequenceEqual(data.Span);
 		}
 
-		private static void ComputeECD(Span<byte> cpukey)
+		internal static void ComputeECD(Span<byte> cpukey)
 		{
 			//uint mask  = 000003FF; // 0xFFFFFFFFFF030000 reversed
 
@@ -251,7 +249,7 @@ namespace SK
 				else if (i < 0x7F) // else if (i != lastbit) // (127)
 				{
 					if (dwTmp != (acc1 & 1))
-						cpukey[(i >> 3)] = (byte)((1 << (i & 7)) ^ (bTmp & 0xFF));
+						cpukey[i >> 3] = (byte)((1 << (i & 7)) ^ (bTmp & 0xFF));
 					acc2 = (acc1 & 1) ^ acc2;
 				}
 				else if (dwTmp != acc2)
