@@ -83,6 +83,7 @@ namespace SK
 
 			data = new byte[kValidByteLen];
 			other.data.CopyTo(data);
+			ErrorCode = other.ErrorCode;
 		}
 
 		/// <summary>
@@ -157,13 +158,12 @@ namespace SK
 			using var rng = RandomNumberGenerator.Create();
 			do { rng.GetNonZeroBytes(span); } while (!CPUKeyExtensions.ValidateHammingWeight(span));
 			CPUKeyExtensions.ComputeECD(span);
-			return new CPUKey(span);
+			return new CPUKey(span) { ErrorCode = CPUKeyError.Valid };
 		}
 
 		/// <summary>
 		/// Validates the CPUKey's data length, hamming weight, and ECD.
 		/// </summary>
-		/// <param name="value">The CPUKey object to validate</param>
 		/// <exception cref="CPUKeyDataInvalidException"></exception>
 		/// <exception cref="CPUKeyHammingWeightInvalidException"></exception>
 		/// <exception cref="CPUKeyECDInvalidException"></exception>
@@ -230,16 +230,14 @@ namespace SK
 		public override int GetHashCode() => data.GetHashCode();
 
 		/// <inheritdoc/>
-		public override bool Equals([NotNullWhen(true)] object? obj)
+		public override bool Equals([NotNullWhen(true)] object? obj) => obj switch
 		{
-			if (obj is null)
-				return false;
-
-			if (obj is CPUKey cpukey)
-				return Equals(cpukey);
-
-			return false;
-		}
+			null => false,
+			Byte[] arr => Equals(arr),
+			String str => Equals(str),
+			CPUKey cpukey => Equals(cpukey),
+			_ => false
+		};
 
 		/// <summary>
 		/// Indicates whether the current object is equal to <paramref name="other"/>.
