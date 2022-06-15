@@ -129,7 +129,7 @@ namespace SK
 		/// <param name="value">The <seealso cref="Array"/> to validate and parse</param>
 		/// <param name="cpukey">A new CPUKey instance</param>
 		/// <returns>true if <paramref name="value"/> is a valid CPUKey, otherwise false</returns>
-		public static bool TryParse([NotNullWhen(true)] ReadOnlySpan<byte> value, [NotNullWhen(true)] out CPUKey? cpukey)
+		public static bool TryParse(ReadOnlySpan<byte> value, [NotNullWhen(true)] out CPUKey? cpukey)
 		{
 			cpukey = Parse(value);
 			return cpukey is not null;
@@ -155,13 +155,9 @@ namespace SK
 		{
 			Span<byte> span = stackalloc byte[0x10];
 			using var rng = RandomNumberGenerator.Create();
-
-			do
-			{
-				do { rng.GetNonZeroBytes(span); } while (!CPUKeyExtensions.ValidateHammingWeight(span));
-				CPUKeyExtensions.ComputeECD(span);
-				return new CPUKey(span);
-			} while (true);
+			do { rng.GetNonZeroBytes(span); } while (!CPUKeyExtensions.ValidateHammingWeight(span));
+			CPUKeyExtensions.ComputeECD(span);
+			return new CPUKey(span);
 		}
 
 		/// <summary>
@@ -173,20 +169,25 @@ namespace SK
 		/// <exception cref="CPUKeyECDInvalidException"></exception>
 		public void Validate()
 		{
-			if (data.Span.IsEmpty)
+			if (ErrorCode == CPUKeyError.Unknown)
 			{
-				ErrorCode = CPUKeyError.InvalidData;
-				throw new CPUKeyDataInvalidException(this);
-			}
-			if (!CPUKeyExtensions.ValidateHammingWeight(data.Span))
-			{
-				ErrorCode = CPUKeyError.InvalidHammingWeight;
-				throw new CPUKeyHammingWeightInvalidException(this);
-			}
-			if (!CPUKeyExtensions.ValidateECD(data.Span))
-			{
-				ErrorCode = CPUKeyError.InvalidECD;
-				throw new CPUKeyECDInvalidException(this);
+				if (data.Span.IsEmpty)
+				{
+					ErrorCode = CPUKeyError.InvalidData;
+					throw new CPUKeyDataInvalidException(this);
+				}
+
+				if (!CPUKeyExtensions.ValidateHammingWeight(data.Span))
+				{
+					ErrorCode = CPUKeyError.InvalidHammingWeight;
+					throw new CPUKeyHammingWeightInvalidException(this);
+				}
+
+				if (!CPUKeyExtensions.ValidateECD(data.Span))
+				{
+					ErrorCode = CPUKeyError.InvalidECD;
+					throw new CPUKeyECDInvalidException(this);
+				}
 			}
 
 			ErrorCode = CPUKeyError.Valid;
@@ -201,7 +202,7 @@ namespace SK
 			if (ErrorCode == CPUKeyError.Unknown)
 			{
 				try { Validate(); }
-				catch(CPUKeyException ex) { Trace.WriteLine(ex); }
+				catch (CPUKeyException ex) { Trace.WriteLine(ex); }
 			}
 
 			return ErrorCode == CPUKeyError.Valid;
@@ -245,34 +246,28 @@ namespace SK
 		/// </summary>
 		/// <param name="other">The comparand as a <see cref="CPUKey"/></param>
 		/// <returns>true if the CPUKey instance is equal to <paramref name="other"/>, otherwise false</returns>
-		public bool Equals([NotNullWhen(true)] CPUKey? other)
-		{
-			if (other is null)
-				return false;
-
-			return other.data.Span.SequenceEqual(data.Span);
-		}
+		public bool Equals([NotNullWhen(true)] CPUKey? other) => other is not null && data.Span.SequenceEqual(other.data.Span);
 
 		/// <summary>
 		/// Indicates whether the current object is equal to <paramref name="value"/>.
 		/// </summary>
 		/// <param name="value">The comparand as a <seealso cref="ReadOnlySpan{T}"/> or byte array</param>
 		/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
-		public bool Equals(ReadOnlySpan<byte> value) => value.SequenceEqual(data.Span);
+		public bool Equals(ReadOnlySpan<byte> value) => data.Span.SequenceEqual(value);
 
 		/// <summary>
 		/// Indicates whether the current object is equal to <paramref name="value"/>.
 		/// </summary>
-		/// <param name="value">The comparand as a <seealso cref="String"/></param>
+		/// <param name="value">The comparand as a <seealso cref="ReadOnlySpan{T}"/> or <seealso cref="String"/></param>
 		/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
-		public bool Equals([NotNullWhen(true)] string? value) => String.Equals(Convert.ToHexString(data.Span), value?.Trim(), StringComparison.OrdinalIgnoreCase);
+		public bool Equals(ReadOnlySpan<char> value) => data.Span.SequenceEqual(Convert.FromHexString(value));
 
 		public static bool operator ==(CPUKey lhs, CPUKey rhs) => lhs.Equals(rhs);
 		public static bool operator !=(CPUKey lhs, CPUKey rhs) => !lhs.Equals(rhs);
 		public static bool operator ==(CPUKey lhs, ReadOnlySpan<byte> rhs) => lhs.Equals(rhs);
 		public static bool operator !=(CPUKey lhs, ReadOnlySpan<byte> rhs) => !lhs.Equals(rhs);
-		public static bool operator ==(CPUKey lhs, string rhs) => lhs.Equals(rhs);
-		public static bool operator !=(CPUKey lhs, string rhs) => !lhs.Equals(rhs);
+		public static bool operator ==(CPUKey lhs, ReadOnlySpan<char> rhs) => lhs.Equals(rhs);
+		public static bool operator !=(CPUKey lhs, ReadOnlySpan<char> rhs) => !lhs.Equals(rhs);
 	}
 
 	/// <summary>
@@ -350,7 +345,7 @@ namespace SK
 			}
 		}
 
-		internal static bool IsHexDigit(char value) => value is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
+		internal static bool IsHexDigit(char value) => value is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
 	}
 
 	public class CPUKeyException : Exception
@@ -362,8 +357,7 @@ namespace SK
 
 		public override string ToString()
 		{
-			var sb = new StringBuilder();
-			sb.AppendLine($"{Message}");
+			var sb = new StringBuilder(Message);
 			sb.AppendLine($"   {Name} [{CPUKey}]");
 			sb.AppendLine(StackTrace);
 			return sb.ToString();
