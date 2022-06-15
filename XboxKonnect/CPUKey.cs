@@ -325,16 +325,16 @@ namespace SK
 
 				if (i < 0x6A) // if (i < 106) // (hammingweight * 2)
 				{
-					acc1 = dwTmp ^ acc1;
+					acc1 ^= dwTmp;
 					if ((acc1 & 1) > 0)
 						acc1 ^= 0x360325;
-					acc2 = dwTmp ^ acc2;
+					acc2 ^= dwTmp;
 				}
 				else if (i < 0x7F) // else if (i != lastbit) // (127)
 				{
 					if (dwTmp != (acc1 & 1))
 						cpukeyData[i >> 3] = (byte)((1 << (i & 7)) ^ (bTmp & 0xFF));
-					acc2 = (acc1 & 1) ^ acc2;
+					acc2 ^= (acc1 & 1);
 				}
 				else if (dwTmp != acc2)
 				{
