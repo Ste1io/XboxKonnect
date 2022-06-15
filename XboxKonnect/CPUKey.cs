@@ -14,6 +14,34 @@ using System.Runtime.InteropServices;
 
 namespace SK
 {
+	public enum CPUKeyError
+	{
+		/// <summary>
+		/// CPUKey has not been validated.
+		/// </summary>
+		Unknown = -1,
+
+		/// <summary>
+		/// CPUKey is valid.
+		/// </summary>
+		Valid,
+
+		/// <summary>
+		/// CPUKey data is empty.
+		/// </summary>
+		InvalidData,
+
+		/// <summary>
+		/// CPUKey failed the hamming weight validation check.
+		/// </summary>
+		InvalidHammingWeight,
+
+		/// <summary>
+		/// CPUKey failed the ECD validation check.
+		/// </summary>
+		InvalidECD,
+	}
+
 	/// <summary>
 	/// Encapsulates a 32-character Xbox CPUKey, and provides parsing, validation, and conversion methods.
 	/// </summary>
@@ -24,6 +52,11 @@ namespace SK
 		internal static int kValidByteLen = 0x10;
 		internal static int kValidCharLen = 0x20;
 		internal static ulong kECDMask = 0xFFFFFFFFFF030000;
+
+		/// <summary>
+		/// Returns the validation result of this CPUKey object set from the last call to <see cref="Validate"/> or <see cref="IsValid"/>.
+		/// </summary>
+		public CPUKeyError ErrorCode { get; private set; } = CPUKeyError.Unknown;
 
 		/// <summary>
 		/// Returns an empty CPUKey object.
