@@ -8,9 +8,12 @@
  *
  */
 
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace SK
 {
@@ -115,7 +118,7 @@ namespace SK
 		/// <returns>A new CPUKey object</returns>
 		public static CPUKey? Parse(ReadOnlySpan<char> value)
 		{
-			if (!ValidateString(value))
+			if (!CPUKeyExtensions.ValidateString(value))
 				return default;
 			return new CPUKey(Convert.FromHexString(value));
 		}
@@ -145,30 +148,63 @@ namespace SK
 		}
 
 		/// <summary>
+		/// Creates a random CPUKey.
+		/// </summary>
+		/// <returns>A valid, randomly generated CPUKey object</returns>
+		public static CPUKey CreateRandom()
+		{
+			Span<byte> span = stackalloc byte[0x10];
+			using var rng = RandomNumberGenerator.Create();
+
+			do
+			{
+				do { rng.GetNonZeroBytes(span); } while (!CPUKeyExtensions.ValidateHammingWeight(span));
+				CPUKeyExtensions.ComputeECD(span);
+				return new CPUKey(span);
+			} while (true);
+		}
+
+		/// <summary>
+		/// Validates the CPUKey's data length, hamming weight, and ECD.
+		/// </summary>
+		/// <param name="value">The CPUKey object to validate</param>
+		/// <exception cref="CPUKeyDataInvalidException"></exception>
+		/// <exception cref="CPUKeyHammingWeightInvalidException"></exception>
+		/// <exception cref="CPUKeyECDInvalidException"></exception>
+		public void Validate()
+		{
+			if (data.Span.IsEmpty)
+			{
+				ErrorCode = CPUKeyError.InvalidData;
+				throw new CPUKeyDataInvalidException(this);
+			}
+			if (!CPUKeyExtensions.ValidateHammingWeight(data.Span))
+			{
+				ErrorCode = CPUKeyError.InvalidHammingWeight;
+				throw new CPUKeyHammingWeightInvalidException(this);
+			}
+			if (!CPUKeyExtensions.ValidateECD(data.Span))
+			{
+				ErrorCode = CPUKeyError.InvalidECD;
+				throw new CPUKeyECDInvalidException(this);
+			}
+
+			ErrorCode = CPUKeyError.Valid;
+		}
+
+		/// <summary>
 		/// Validates a CPUKey object using hamming weight verification and ECD checks.
 		/// </summary>
 		/// <returns>Returns true if the object is a valid CPUKey, otherwise false</returns>
 		public bool IsValid()
 		{
-			if (data.IsEmpty)
+			if (ErrorCode == CPUKeyError.Unknown)
 			{
-				System.Diagnostics.Trace.WriteLine($"Invalid CPUKey: No data");
-				return false;
+				try { Validate(); }
+				catch(CPUKeyException ex) { Trace.WriteLine(ex); }
 			}
 
-			if (!ValidateHammingWeight())
-			{
-				System.Diagnostics.Trace.WriteLine($"Invalid CPUKey: Failed hamming weight check");
-				return false;
-			}
-
-			if (!ValidateECD())
-			{
-				System.Diagnostics.Trace.WriteLine($"Invalid CPUKey: Failed ECD check");
-				return false;
-			}
-
-			return true;
+			return ErrorCode == CPUKeyError.Valid;
 		}
 
 		/// <summary>
@@ -237,29 +273,51 @@ namespace SK
 		public static bool operator !=(CPUKey lhs, ReadOnlySpan<byte> rhs) => !lhs.Equals(rhs);
 		public static bool operator ==(CPUKey lhs, string rhs) => lhs.Equals(rhs);
 		public static bool operator !=(CPUKey lhs, string rhs) => !lhs.Equals(rhs);
+	}
 
-		internal bool ValidateHammingWeight()
+	/// <summary>
+	/// Extension methods for CPUKey.
+	/// </summary>
+	public static class CPUKeyExtensions
+	{
+		public static byte[] GetDigest(this CPUKey cpukey) => SHA1.Create().ComputeHash(cpukey.ToArray());
+
+		internal static bool ValidateString(ReadOnlySpan<char> value)
 		{
-			Span<byte> span = stackalloc byte[kValidByteLen];
-			data.Span.CopyTo(span);
+			if (value.Length != CPUKey.kValidCharLen)
+				return false;
+
+			for (int i = 0; i < CPUKey.kValidCharLen; i++)
+			{
+				if (!IsHexDigit(value[i]))
+					return false;
+			}
+
+			return true;
+		}
+
+		internal static bool ValidateHammingWeight(ReadOnlySpan<byte> cpukeyData)
+		{
+			Span<byte> span = stackalloc byte[CPUKey.kValidByteLen];
+			cpukeyData.CopyTo(span);
 			span[..sizeof(ulong)].Reverse();
 			span[sizeof(ulong)..].Reverse();
 
 			Span<ulong> parts = MemoryMarshal.Cast<byte, ulong>(span);
-			var hammingWeight = BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & kECDMask);
+			var hammingWeight = BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & CPUKey.kECDMask);
 
 			return hammingWeight == 53;
 		}
 
-		internal bool ValidateECD()
+		internal static bool ValidateECD(ReadOnlySpan<byte> cpukeyData)
 		{
-			Span<byte> span = stackalloc byte[kValidByteLen];
-			data.Span.CopyTo(span);
+			Span<byte> span = stackalloc byte[CPUKey.kValidByteLen];
+			cpukeyData.CopyTo(span);
 			ComputeECD(span);
-			return span.SequenceEqual(data.Span);
+			return span.SequenceEqual(cpukeyData);
 		}
 
-		internal static void ComputeECD(Span<byte> cpukey)
+		internal static void ComputeECD(Span<byte> cpukeyData)
 		{
 			//uint mask  = 000003FF; // 0xFFFFFFFFFF030000 reversed
 
@@ -269,7 +327,7 @@ namespace SK
 
 			for (var i = 0; i < 128; i++, acc1 >>= 1) // foreach (bit in cpukey)
 			{
-				var bTmp = cpukey[i >> 3];
+				var bTmp = cpukeyData[i >> 3];
 				uint dwTmp = (uint)((bTmp >> (i & 7)) & 1);
 
 				if (i < 0x6A) // if (i < 106) // (hammingweight * 2)
@@ -282,30 +340,51 @@ namespace SK
 				else if (i < 0x7F) // else if (i != lastbit) // (127)
 				{
 					if (dwTmp != (acc1 & 1))
-						cpukey[i >> 3] = (byte)((1 << (i & 7)) ^ (bTmp & 0xFF));
+						cpukeyData[i >> 3] = (byte)((1 << (i & 7)) ^ (bTmp & 0xFF));
 					acc2 = (acc1 & 1) ^ acc2;
 				}
 				else if (dwTmp != acc2)
 				{
-					cpukey[0xF] = (byte)((0x80 ^ bTmp) & 0xFF); // ((128 ^ bTmp) & 0xFF)
+					cpukeyData[0xF] = (byte)((0x80 ^ bTmp) & 0xFF); // ((128 ^ bTmp) & 0xFF)
 				}
 			}
 		}
 
-		internal static bool ValidateString(ReadOnlySpan<char> value)
-		{
-			if (value.Length != kValidCharLen)
-				return false;
-
-			for (int i = 0; i < kValidCharLen; i++)
-			{
-				if (!IsHexDigit(value[i]))
-					return false;
-			}
-
-			return true;
-		}
-
 		internal static bool IsHexDigit(char value) => value is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
+	}
+
+	public class CPUKeyException : Exception
+	{
+		public string Name { get; init; } = nameof(CPUKeyException);
+		public CPUKey CPUKey { get; init; }
+		internal CPUKeyException(string name, CPUKey cpukey) : base() => (Name, CPUKey) = (name, cpukey);
+		internal CPUKeyException(string name, CPUKey cpukey, string message) : base(message) => (Name, CPUKey) = (name, cpukey);
+
+		public override string ToString()
+		{
+			var sb = new StringBuilder();
+			sb.AppendLine($"{Message}");
+			sb.AppendLine($"   {Name} [{CPUKey}]");
+			sb.AppendLine(StackTrace);
+			return sb.ToString();
+		}
+	}
+
+	public sealed class CPUKeyDataInvalidException : CPUKeyException
+	{
+		internal CPUKeyDataInvalidException(CPUKey cpukey) : base("Invalid Data", cpukey) { }
+		internal CPUKeyDataInvalidException(CPUKey cpukey, string message) : base("Invalid Data", cpukey, message) { }
+	}
+
+	public sealed class CPUKeyHammingWeightInvalidException : CPUKeyException
+	{
+		internal CPUKeyHammingWeightInvalidException(CPUKey cpukey) : base("Invalid Hamming Weight", cpukey) { }
+		internal CPUKeyHammingWeightInvalidException(CPUKey cpukey, string message) : base("Invalid Hamming Weight", cpukey, message) { }
+	}
+
+	public sealed class CPUKeyECDInvalidException : CPUKeyException
+	{
+		internal CPUKeyECDInvalidException(CPUKey cpukey) : base("Invalid ECD", cpukey) { }
+		internal CPUKeyECDInvalidException(CPUKey cpukey, string message) : base("Invalid ECD", cpukey, message) { }
 	}
 }
