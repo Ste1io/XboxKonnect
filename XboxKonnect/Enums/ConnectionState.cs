@@ -23,12 +23,6 @@ namespace SK.XboxKonnect
 		Unknown = 0,
 
 		/// <summary>
-		/// This enum member is obsolete. Use <see cref="Unknown"/> instead.
-		/// </summary>
-		[Obsolete("This enum member is obsolete. Use ConnectionState.Unknown instead.", false)]
-		None = Unknown,
-
-		/// <summary>
 		/// Console is offline.
 		/// </summary>
 		Offline = 1,
