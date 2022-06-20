@@ -91,16 +91,6 @@ namespace SK.XboxKonnect
 			internal set { lock (_lock) Set(ref _connectionState, value); }
 		}
 
-		///// <summary>
-		///// The CPUKey for this connection. This is set by the consumer (typically through xbdm),
-		///// so as not to add additional dependencies to this API.
-		///// </summary>
-		//public CPUKey? CPUKey
-		//{
-		//	get => _cpuKey;
-		//	set { lock (_lock) Set(ref _cpuKey, value); }
-		//}
-
 		#endregion
 
 		/// <summary>
