@@ -10,6 +10,7 @@
 
 using System.ComponentModel;
 using System.Net;
+using System.Net.NetworkInformation;
 
 namespace SK.XboxKonnect
 {
@@ -20,21 +21,25 @@ namespace SK.XboxKonnect
 	{
 		private static readonly object _lock = new object();
 
+		private NetworkInterface? _netInterface;
 		private IPEndPoint? _ep;
-		private CPUKey _cpuKey = CPUKey.Empty;
 		private string _name = String.Empty;
-		private ConsoleType _consoleType = ConsoleType.Unknown;
-		private ConnectionType _connectionType = ConnectionType.Unknown;
+		private DateTime _discovered = DateTime.Now;
+		private DateTime _lastAck = DateTime.Now;
 		private ConnectionState _connectionState = ConnectionState.Unknown;
-		private DateTime _firstPing = DateTime.Now;
-		private DateTime _lastPing = DateTime.Now;
+		//private CPUKey? _cpuKey;
 
 		#region Connection Properties
 
 		/// <summary>
-		/// The connection's <seealso cref="IPAddress"/> on the local network.
+		/// The network'd type for this connection (Bridged, LAN, WAN).
+		/// WAN is currently not being detected, and will return LAN by default.
 		/// </summary>
-		public IPAddress IP => EndPoint?.Address ?? IPAddress.None;
+		public NetworkInterface? NetworkInterface
+		{
+			get => _netInterface;
+			internal set { lock (_lock) Set(ref _netInterface, value); }
+		}
 
 		/// <summary>
 		/// The connection's <seealso cref="IPEndPoint"/> on the local network.
@@ -46,14 +51,9 @@ namespace SK.XboxKonnect
 		}
 
 		/// <summary>
-		/// The CPUKey for this connection. This is set by the consumer (typically through xbdm),
-		/// so as not to add additional dependencies to this API.
+		/// The connection's <seealso cref="IPAddress"/> on the local network.
 		/// </summary>
-		public CPUKey CPUKey
-		{
-			get => _cpuKey;
-			set { lock (_lock) Set(ref _cpuKey, value); }
-		}
+		public IPAddress IP => EndPoint?.Address ?? IPAddress.None;
 
 		/// <summary>
 		/// Console name (default is Jtag / XeDevkit).
@@ -61,26 +61,25 @@ namespace SK.XboxKonnect
 		public string Name
 		{
 			get => _name;
-			set { lock (_lock) Set(ref _name, value); }
+			internal set { lock (_lock) Set(ref _name, value); }
 		}
 
 		/// <summary>
-		/// The type of device this connection represents (Jtag, Devkit).
+		/// Timestamp for when the connection was initially discovered.
 		/// </summary>
-		public ConsoleType ConsoleType
+		public DateTime Discovered
 		{
-			get => _consoleType;
-			set { lock (_lock) Set(ref _consoleType, value); }
+			get => _discovered;
+			internal set { lock (_lock) Set(ref _discovered, value); }
 		}
 
 		/// <summary>
-		/// The network'd type for this connection (Bridged, LAN, WAN).
-		/// WAN is currently not being detected, and will return LAN by default.
+		/// Timestamp of the last received response from the connection.
 		/// </summary>
-		public ConnectionType ConnectionType
+		public DateTime LastAck
 		{
-			get => _connectionType;
-			set { lock (_lock) Set(ref _connectionType, value); }
+			get => _lastAck;
+			internal set { lock (_lock) Set(ref _lastAck, value); }
 		}
 
 		/// <summary>
@@ -92,23 +91,15 @@ namespace SK.XboxKonnect
 			internal set { lock (_lock) Set(ref _connectionState, value); }
 		}
 
-		/// <summary>
-		/// Timestamp for when the connection was initially discovered.
-		/// </summary>
-		public DateTime FirstPing
-		{
-			get => _firstPing;
-			internal set { lock (_lock) Set(ref _firstPing, value); }
-		}
-
-		/// <summary>
-		/// Timestamp of the last received response from the connection.
-		/// </summary>
-		public DateTime LastPing
-		{
-			get => _lastPing;
-			internal set { lock (_lock) Set(ref _lastPing, value); }
-		}
+		///// <summary>
+		///// The CPUKey for this connection. This is set by the consumer (typically through xbdm),
+		///// so as not to add additional dependencies to this API.
+		///// </summary>
+		//public CPUKey? CPUKey
+		//{
+		//	get => _cpuKey;
+		//	set { lock (_lock) Set(ref _cpuKey, value); }
+		//}
 
 		#endregion
 
@@ -119,12 +110,7 @@ namespace SK.XboxKonnect
 		/// </summary>
 		/// <param name="other">Another <see cref="Connection"/> to compare for equality.</param>
 		/// <returns>Returns true if <see cref="CPUKey"/> or <see cref="IP"/> matches.</returns>
-		public bool Equals(Connection other)
-		{
-			if (other.CPUKey is null || CPUKey is null)
-				return other.IP == IP;
-			return other.CPUKey == CPUKey;
-		}
+		public bool Equals(Connection other) => other.IP == IP;
 
 		/// <summary>
 		/// Overrides base ToString() method, returning a string in the form of: <c>Jtag (192.168.0.69)</c>
