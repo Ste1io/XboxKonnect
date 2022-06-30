@@ -33,7 +33,7 @@ namespace SK.XboxKonnect
 		/// <summary>
 		/// Stores all current console connections, disconnections, and basic connection details.
 		/// </summary>
-		public Dictionary<IPAddress, Connection> Connections { get; init; } = new Dictionary<IPAddress, Connection>();
+		public Dictionary<IPAddress, Connection> Connections { get; private set; } = new Dictionary<IPAddress, Connection>();
 
 		/// <summary>
 		/// Returns whether connection scanning is currently active or not.
@@ -51,7 +51,7 @@ namespace SK.XboxKonnect
 		/// from the time of the most recent ack.
 		/// Default is 4 seconds.
 		/// </summary>
-		public TimeSpan DisconnectTimeout => new TimeSpan(0, 0, 4);
+		public TimeSpan DisconnectTimeout { get; set; } = new TimeSpan(0, 0, 4);
 
 		/// <summary>
 		/// Whether offline connections should be automatically purged from the connection list or not.
