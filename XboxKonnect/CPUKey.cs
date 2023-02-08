@@ -1,4 +1,4 @@
-﻿/*
+/*
  * CPUKey class
  *
  * Created: 01/20/2020
@@ -17,34 +17,6 @@ using System.Text;
 
 namespace SK
 {
-	public enum CPUKeyError
-	{
-		/// <summary>
-		/// CPUKey has not been validated.
-		/// </summary>
-		Unknown = -1,
-
-		/// <summary>
-		/// CPUKey is valid.
-		/// </summary>
-		Valid,
-
-		/// <summary>
-		/// CPUKey data is empty.
-		/// </summary>
-		InvalidData,
-
-		/// <summary>
-		/// CPUKey failed the hamming weight validation check.
-		/// </summary>
-		InvalidHammingWeight,
-
-		/// <summary>
-		/// CPUKey failed the ECD validation check.
-		/// </summary>
-		InvalidECD,
-	}
-
 	/// <summary>
 	/// Encapsulates a 32-character Xbox CPUKey, and provides parsing, validation, and conversion methods.
 	/// </summary>
@@ -378,5 +350,33 @@ namespace SK
 	{
 		internal CPUKeyECDInvalidException(CPUKey cpukey) : base("Invalid ECD", cpukey) { }
 		internal CPUKeyECDInvalidException(CPUKey cpukey, string message) : base("Invalid ECD", cpukey, message) { }
+	}
+
+	public enum CPUKeyError
+	{
+		/// <summary>
+		/// CPUKey has not been validated.
+		/// </summary>
+		Unknown = -1,
+
+		/// <summary>
+		/// CPUKey is valid.
+		/// </summary>
+		Valid,
+
+		/// <summary>
+		/// CPUKey data is empty.
+		/// </summary>
+		InvalidData,
+
+		/// <summary>
+		/// CPUKey failed the hamming weight validation check.
+		/// </summary>
+		InvalidHammingWeight,
+
+		/// <summary>
+		/// CPUKey failed the ECD validation check.
+		/// </summary>
+		InvalidECD,
 	}
 }
