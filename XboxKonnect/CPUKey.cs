@@ -1,4 +1,4 @@
-/*
+﻿/*
  * CPUKey class
  *
  * Created: 01/20/2020
@@ -109,12 +109,12 @@ namespace SK
 		}
 
 		/// <summary>
-		/// Validates the given CPUKey <seealso cref="String"/>, initializing a new CPUKey instance at <paramref name="cpukey"/>
+		/// Validates the given CPUKey <seealso cref="String"/> representation by, initializing a new CPUKey instance at <paramref name="cpukey"/>
 		/// </summary>
-		/// <param name="value">The <seealso cref="String"/> to validate and parse</param>
+		/// <param name="value">The <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="String"/> to validate and parse</param>
 		/// <param name="cpukey">A new CPUKey instance</param>
-		/// <returns>true if <paramref name="value"/> is a valid CPUKey, otherwise false</returns>
-		public static bool TryParse([NotNullWhen(true)] string? value, [NotNullWhen(true)] out CPUKey? cpukey)
+		/// <returns>true if <paramref name="value"/> represents a valid CPUKey, otherwise false</returns>
+		public static bool TryParse(ReadOnlySpan<char> value, [NotNullWhen(true)] out CPUKey? cpukey)
 		{
 			cpukey = Parse(value);
 			return cpukey is not null;
