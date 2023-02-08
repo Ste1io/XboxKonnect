@@ -73,6 +73,19 @@ public class CPUKey : IEquatable<CPUKey>
 	}
 
 	/// <summary>
+	/// Initializes a new CPUKey instance from a hex string representation of the underlying 8-bit unsigned integer array.
+	/// </summary>
+	/// <param name="value">The <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/> to validate and parse</param>
+	/// <exception cref="ArgumentException"><paramref name="value"/> length is not 0x20 (32)</exception>
+	public CPUKey(ReadOnlySpan<char> value)
+	{
+		if (value.Length != kValidCharLen)
+			throw new ArgumentException("Source length is not equal to the length of a CPUKey (0x20 chars).", nameof(value));
+
+		data = Convert.FromHexString(value);
+	}
+
+	/// <summary>
 	/// Creates a new CPUKey instance from a byte array.
 	/// </summary>
 	/// <param name="value">The <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/> to validate and parse</param>
@@ -93,7 +106,7 @@ public class CPUKey : IEquatable<CPUKey>
 	{
 		if (!CPUKeyExtensions.ValidateString(value))
 			return default;
-		return new CPUKey(Convert.FromHexString(value));
+		return new CPUKey(value);
 	}
 
 	/// <summary>
