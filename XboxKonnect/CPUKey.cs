@@ -20,7 +20,7 @@ namespace SK;
 /// <summary>
 /// Encapsulates a 32-character Xbox CPUKey, and provides parsing, validation, and conversion methods.
 /// </summary>
-public class CPUKey : IEquatable<CPUKey>
+public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 {
 	private readonly Memory<byte> data = Memory<byte>.Empty;
 
@@ -245,12 +245,18 @@ public class CPUKey : IEquatable<CPUKey>
 	/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
 	public bool Equals(ReadOnlySpan<char> value) => data.Span.SequenceEqual(Convert.FromHexString(value));
 
+	public int CompareTo(CPUKey? other) => other is not null ? data.Span.SequenceCompareTo(other.data.Span) : 1;
+
 	public static bool operator ==(CPUKey lhs, CPUKey rhs) => lhs.Equals(rhs);
 	public static bool operator !=(CPUKey lhs, CPUKey rhs) => !lhs.Equals(rhs);
 	public static bool operator ==(CPUKey lhs, ReadOnlySpan<byte> rhs) => lhs.Equals(rhs);
 	public static bool operator !=(CPUKey lhs, ReadOnlySpan<byte> rhs) => !lhs.Equals(rhs);
 	public static bool operator ==(CPUKey lhs, ReadOnlySpan<char> rhs) => lhs.Equals(rhs);
 	public static bool operator !=(CPUKey lhs, ReadOnlySpan<char> rhs) => !lhs.Equals(rhs);
+	public static bool operator <(CPUKey lhs, CPUKey rhs) => lhs.CompareTo(rhs) < 0;
+	public static bool operator <=(CPUKey lhs, CPUKey rhs) => lhs.CompareTo(rhs) <= 0;
+	public static bool operator >(CPUKey lhs, CPUKey rhs) => lhs.CompareTo(rhs) > 0;
+	public static bool operator >=(CPUKey lhs, CPUKey rhs) => lhs.CompareTo(rhs) >= 0;
 }
 
 /// <summary>
@@ -270,6 +276,8 @@ public static class CPUKeyExtensions
 			if (!IsHexDigit(value[i]))
 				return false;
 		}
+
+		"str".CompareTo("str2");
 
 		return true;
 	}
