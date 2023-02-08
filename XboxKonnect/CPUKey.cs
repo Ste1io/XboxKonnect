@@ -59,7 +59,7 @@ public class CPUKey : IEquatable<CPUKey>
 	}
 
 	/// <summary>
-	/// Initializes a new CPUKey instance from an array.
+	/// Initializes a new CPUKey instance from a byte array.
 	/// </summary>
 	/// <param name="value">The <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/> to validate and parse</param>
 	/// <exception cref="ArgumentException"><paramref name="value"/> length is not 0x10 (16)</exception>
@@ -73,7 +73,7 @@ public class CPUKey : IEquatable<CPUKey>
 	}
 
 	/// <summary>
-	/// Initializes a new CPUKey instance from a hex string representation of the underlying 8-bit unsigned integer array.
+	/// Initializes a new CPUKey instance from a hex <seealso cref="String"/> representation of the underlying 8-bit unsigned integer array.
 	/// </summary>
 	/// <param name="value">The <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/> to validate and parse</param>
 	/// <exception cref="ArgumentException"><paramref name="value"/> length is not 0x20 (32)</exception>
@@ -122,7 +122,7 @@ public class CPUKey : IEquatable<CPUKey>
 	}
 
 	/// <summary>
-	/// Validates the given CPUKey <seealso cref="String"/> representation by, initializing a new CPUKey instance at <paramref name="cpukey"/>
+	/// Validates the given CPUKey <seealso cref="String"/> representation, initializing a new CPUKey instance at <paramref name="cpukey"/>
 	/// </summary>
 	/// <param name="value">The <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="String"/> to validate and parse</param>
 	/// <param name="cpukey">A new CPUKey instance</param>
