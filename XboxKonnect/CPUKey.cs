@@ -61,7 +61,7 @@ namespace SK
 		/// <summary>
 		/// Initializes a new CPUKey instance from an array.
 		/// </summary>
-		/// <param name="value">A <seealso cref="ReadOnlySpan{T}"/> representation of a byte array</param>
+		/// <param name="value">The <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/> to validate and parse</param>
 		/// <exception cref="ArgumentException"><paramref name="value"/> length is not 0x10 (16)</exception>
 		public CPUKey(ReadOnlySpan<byte> value)
 		{
@@ -75,7 +75,7 @@ namespace SK
 		/// <summary>
 		/// Creates a new CPUKey instance from a byte array.
 		/// </summary>
-		/// <param name="value">A <seealso cref="ReadOnlySpan{T}"/> representation of a byte array</param>
+		/// <param name="value">The <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/> to validate and parse</param>
 		/// <returns>A new CPUKey object</returns>
 		public static CPUKey? Parse(ReadOnlySpan<byte> value)
 		{
@@ -87,7 +87,7 @@ namespace SK
 		/// <summary>
 		/// Creates a new CPUKey instance from a <seealso cref="String"/>.
 		/// </summary>
-		/// <param name="value">A CPUKey <seealso cref="ReadOnlySpan{T}"/> representation of a <seealso cref="String"/></param>
+		/// <param name="value">The <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="String"/> to validate and parse</param>
 		/// <returns>A new CPUKey object</returns>
 		public static CPUKey? Parse(ReadOnlySpan<char> value)
 		{
@@ -99,9 +99,9 @@ namespace SK
 		/// <summary>
 		/// Validates the given CPUKey byte array, initializing a new CPUKey instance at <paramref name="cpukey"/>
 		/// </summary>
-		/// <param name="value">The <seealso cref="Array"/> to validate and parse</param>
+		/// <param name="value">The <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/> to validate and parse</param>
 		/// <param name="cpukey">A new CPUKey instance</param>
-		/// <returns>true if <paramref name="value"/> is a valid CPUKey, otherwise false</returns>
+		/// <returns>true if <paramref name="value"/> represents a valid CPUKey, otherwise false</returns>
 		public static bool TryParse(ReadOnlySpan<byte> value, [NotNullWhen(true)] out CPUKey? cpukey)
 		{
 			cpukey = Parse(value);
@@ -221,14 +221,14 @@ namespace SK
 		/// <summary>
 		/// Indicates whether the current object is equal to <paramref name="value"/>.
 		/// </summary>
-		/// <param name="value">The comparand as a <seealso cref="ReadOnlySpan{T}"/> or byte array</param>
+		/// <param name="value">The comparand <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="Array"/></param>
 		/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
 		public bool Equals(ReadOnlySpan<byte> value) => data.Span.SequenceEqual(value);
 
 		/// <summary>
 		/// Indicates whether the current object is equal to <paramref name="value"/>.
 		/// </summary>
-		/// <param name="value">The comparand as a <seealso cref="ReadOnlySpan{T}"/> or <seealso cref="String"/></param>
+		/// <param name="value">The comparand <seealso cref="ReadOnlySpan{T}"/> representation of a CPUKey <seealso cref="String"/></param>
 		/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
 		public bool Equals(ReadOnlySpan<char> value) => data.Span.SequenceEqual(Convert.FromHexString(value));
 
