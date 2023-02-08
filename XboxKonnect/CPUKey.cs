@@ -184,7 +184,7 @@ namespace SK
 		/// Returns a <seealso cref="ReadOnlySpan{T}"/> from the current CPUKey instance
 		/// </summary>
 		/// <returns>A <seealso cref="ReadOnlySpan{T}"/> created from the CPUKey object</returns>
-		public ReadOnlySpan<byte> ToSpan() => data.Span;
+		public ReadOnlySpan<byte> AsSpan() => data.Span;
 
 		/// <summary>
 		/// Copies the CPUKey into a new byte array.
