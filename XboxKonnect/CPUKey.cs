@@ -1,14 +1,11 @@
-﻿/*
+/*
  * CPUKey class
- *
  * Created: 01/20/2020
  * Author:  Daniel McClintock (alias: Stelio Kontos)
  *
  * Copyright (c) 2020 Daniel McClintock
- *
  */
 
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -18,15 +15,16 @@ using System.Text;
 namespace SK;
 
 /// <summary>
-/// Encapsulates a 32-character Xbox CPUKey, and provides parsing, validation, and conversion methods.
+/// Encapsulates a 16-byte (32-character hexidecimal) Xbox 360 CPUKey,
+/// and provides parsing, validation, conversion, and utility methods.
 /// </summary>
 public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 {
 	private readonly Memory<byte> data = Memory<byte>.Empty;
 
-	internal static int kValidByteLen = 0x10;
-	internal static int kValidCharLen = 0x20;
-	internal static ulong kECDMask = 0xFFFFFFFFFF030000;
+	private static readonly int ValidByteLen = 0x10;
+	private static readonly int ValidCharLen = 0x20;
+	private static readonly ulong EcdMask = 0xFFFF_FFFF_FF03_0000; // reverse endianness: 0x000003FF
 
 	/// <summary>
 	/// Returns the validation result of this CPUKey object set from the last call to <see cref="Validate"/> or <see cref="IsValid"/>.
@@ -53,7 +51,7 @@ public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		if (other is null)
 			throw new ArgumentNullException(nameof(other));
 
-		data = new byte[kValidByteLen];
+		data = new byte[ValidByteLen];
 		other.data.CopyTo(data);
 		ErrorCode = other.ErrorCode;
 	}
@@ -65,10 +63,10 @@ public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <exception cref="ArgumentException"><paramref name="value"/> length is not 0x10 (16)</exception>
 	public CPUKey(ReadOnlySpan<byte> value)
 	{
-		if (value.Length != kValidByteLen)
-			throw new ArgumentException("Source length is not equal to the length of a CPUKey (0x10 bytes).", nameof(value));
+		if (value.Length != ValidByteLen)
+			throw new ArgumentException("Source length must be 0x10 bytes.", nameof(value));
 
-		data = new byte[kValidByteLen];
+		data = new byte[ValidByteLen];
 		value.CopyTo(data.Span);
 	}
 
@@ -79,8 +77,8 @@ public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <exception cref="ArgumentException"><paramref name="value"/> length is not 0x20 (32)</exception>
 	public CPUKey(ReadOnlySpan<char> value)
 	{
-		if (value.Length != kValidCharLen)
-			throw new ArgumentException("Source length is not equal to the length of a CPUKey (0x20 chars).", nameof(value));
+		if (!ValidateString(value))
+			throw new ArgumentException("Source length must be 0x20 chars.", nameof(value));
 
 		data = Convert.FromHexString(value);
 	}
@@ -92,8 +90,8 @@ public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <returns>A new CPUKey object</returns>
 	public static CPUKey? Parse(ReadOnlySpan<byte> value)
 	{
-		if (value.Length != kValidByteLen)
-			return default;
+		if (value.Length != ValidByteLen)
+			return null;
 		return new CPUKey(value);
 	}
 
@@ -104,8 +102,8 @@ public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <returns>A new CPUKey object</returns>
 	public static CPUKey? Parse(ReadOnlySpan<char> value)
 	{
-		if (!CPUKeyExtensions.ValidateString(value))
-			return default;
+		if (!ValidateString(value))
+			return null;
 		return new CPUKey(value);
 	}
 
@@ -141,9 +139,24 @@ public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	{
 		Span<byte> span = stackalloc byte[0x10];
 		using var rng = RandomNumberGenerator.Create();
-		do { rng.GetNonZeroBytes(span); } while (!CPUKeyExtensions.ValidateHammingWeight(span));
-		CPUKeyExtensions.ComputeECD(span);
+		do { rng.GetNonZeroBytes(span); } while (!ValidateHammingWeight(span));
+		ComputeECD(span);
 		return new CPUKey(span) { ErrorCode = CPUKeyError.Valid };
+	}
+
+	public byte[] GetDigest() => SHA1.Create().ComputeHash(ToArray());
+
+	/// <summary>
+	/// Validates a CPUKey object using hamming weight verification and ECD checks,
+	/// and updates the <see cref="ErrorCode"/> property with the validation result.
+	/// Will not throw.
+	/// </summary>
+	/// <returns>Returns true if the object is a valid CPUKey, otherwise false</returns>
+	public bool IsValid()
+	{
+		if (ErrorCode != CPUKeyError.Valid)
+			ValidateNoThrow();
+		return ErrorCode == CPUKeyError.Valid;
 	}
 
 	/// <summary>
@@ -153,44 +166,30 @@ public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <exception cref="CPUKeyHammingWeightInvalidException"></exception>
 	/// <exception cref="CPUKeyECDInvalidException"></exception>
 	public void Validate()
-	{
-		if (ErrorCode == CPUKeyError.Unknown)
 		{
 			if (data.Span.IsEmpty)
-			{
-				ErrorCode = CPUKeyError.InvalidData;
-				throw new CPUKeyDataInvalidException(this);
-			}
-
-			if (!CPUKeyExtensions.ValidateHammingWeight(data.Span))
-			{
-				ErrorCode = CPUKeyError.InvalidHammingWeight;
+			throw new CPUKeyDataInvalidException(this, "CPUKey Data cannot be empty.");
+		if (!ValidateHammingWeight(data.Span))
 				throw new CPUKeyHammingWeightInvalidException(this);
-			}
-
-			if (!CPUKeyExtensions.ValidateECD(data.Span))
-			{
-				ErrorCode = CPUKeyError.InvalidECD;
+		if (!ValidateECD(data.Span))
 				throw new CPUKeyECDInvalidException(this);
-			}
-		}
-
 		ErrorCode = CPUKeyError.Valid;
 	}
 
 	/// <summary>
-	/// Validates a CPUKey object using hamming weight verification and ECD checks.
+	/// Validates the CPUKey's data length, hamming weight, and ECD.
+	/// Updates the <see cref="ErrorCode"/> property with the validation result.
+	/// Will not throw.
 	/// </summary>
-	/// <returns>Returns true if the object is a valid CPUKey, otherwise false</returns>
-	public bool IsValid()
+	public void ValidateNoThrow()
 	{
-		if (ErrorCode == CPUKeyError.Unknown)
-		{
-			try { Validate(); }
-			catch (CPUKeyException ex) { Trace.WriteLine(ex); }
-		}
-
-		return ErrorCode == CPUKeyError.Valid;
+		if (data.Span.IsEmpty)
+			ErrorCode = CPUKeyError.InvalidData;
+		else if (!ValidateHammingWeight(data.Span))
+			ErrorCode = CPUKeyError.InvalidHammingWeight;
+		else if (!ValidateECD(data.Span))
+			ErrorCode = CPUKeyError.InvalidECD;
+		else ErrorCode = CPUKeyError.Valid;
 	}
 
 	/// <summary>
@@ -217,7 +216,6 @@ public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <inheritdoc/>
 	public override bool Equals([NotNullWhen(true)] object? obj) => obj switch
 	{
-		null => false,
 		Byte[] arr => Equals(arr),
 		String str => Equals(str),
 		CPUKey cpukey => Equals(cpukey),
@@ -245,6 +243,7 @@ public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false</returns>
 	public bool Equals(ReadOnlySpan<char> value) => data.Span.SequenceEqual(Convert.FromHexString(value));
 
+	/// <inheritdoc/>
 	public int CompareTo(CPUKey? other) => other is not null ? data.Span.SequenceCompareTo(other.data.Span) : 1;
 
 	public static bool operator ==(CPUKey lhs, CPUKey rhs) => lhs.Equals(rhs);
@@ -253,98 +252,99 @@ public class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	public static bool operator !=(CPUKey lhs, ReadOnlySpan<byte> rhs) => !lhs.Equals(rhs);
 	public static bool operator ==(CPUKey lhs, ReadOnlySpan<char> rhs) => lhs.Equals(rhs);
 	public static bool operator !=(CPUKey lhs, ReadOnlySpan<char> rhs) => !lhs.Equals(rhs);
+
 	public static bool operator <(CPUKey lhs, CPUKey rhs) => lhs.CompareTo(rhs) < 0;
 	public static bool operator <=(CPUKey lhs, CPUKey rhs) => lhs.CompareTo(rhs) <= 0;
 	public static bool operator >(CPUKey lhs, CPUKey rhs) => lhs.CompareTo(rhs) > 0;
 	public static bool operator >=(CPUKey lhs, CPUKey rhs) => lhs.CompareTo(rhs) >= 0;
-}
 
-/// <summary>
-/// Extension methods for CPUKey.
-/// </summary>
-public static class CPUKeyExtensions
-{
-	public static byte[] GetDigest(this CPUKey cpukey) => SHA1.Create().ComputeHash(cpukey.ToArray());
+	internal static bool IsHexDigit(char value) => value is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
 
 	internal static bool ValidateString(ReadOnlySpan<char> value)
 	{
-		if (value.Length != CPUKey.kValidCharLen)
+		if (value.Length != ValidCharLen)
 			return false;
 
-		for (int i = 0; i < CPUKey.kValidCharLen; i++)
+		for (int i = 0; i < ValidCharLen; i++)
 		{
 			if (!IsHexDigit(value[i]))
 				return false;
 		}
 
-		"str".CompareTo("str2");
-
 		return true;
 	}
 
-	internal static bool ValidateHammingWeight(ReadOnlySpan<byte> cpukeyData)
+	internal static bool ValidateHammingWeight(ReadOnlySpan<byte> value)
 	{
-		Span<byte> span = stackalloc byte[CPUKey.kValidByteLen];
-		cpukeyData.CopyTo(span);
+		// scratch space on the stack - faster than byte[] (no heap allocations)
+		Span<byte> span = stackalloc byte[ValidByteLen];
+		value.CopyTo(span);
+
+		// swap endianness since we'll be processing it in two 64-bit operations
 		span[..sizeof(ulong)].Reverse();
 		span[sizeof(ulong)..].Reverse();
 
+		// reinterpret our span as a pair of ulongs for our bitwise ops
+		// we'll just use hardware intrinsics to perform the bit twiddling (fast)
+		// mask is applied to the second value for the final Hamming weight
 		Span<ulong> parts = MemoryMarshal.Cast<byte, ulong>(span);
-		var hammingWeight = BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & CPUKey.kECDMask);
+		var hammingWeight = BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & EcdMask);
 
-		return hammingWeight == 53;
+		// anything other than 0x35 is invalid
+		return hammingWeight == 0x35;
 	}
 
-	internal static bool ValidateECD(ReadOnlySpan<byte> cpukeyData)
+	internal static bool ValidateECD(ReadOnlySpan<byte> value)
 	{
-		Span<byte> span = stackalloc byte[CPUKey.kValidByteLen];
-		cpukeyData.CopyTo(span);
+		Span<byte> span = stackalloc byte[ValidByteLen];
+		value.CopyTo(span);
 		ComputeECD(span);
-		return span.SequenceEqual(cpukeyData);
+		return span.SequenceEqual(value);
 	}
 
-	internal static void ComputeECD(Span<byte> cpukeyData)
+	/// <summary>
+	/// While it is commonly believed that the Xbox 360 had a failure rate close to 30%, Microsoft "unnoficially"
+	/// claimed it to be only 3-5% shortly after the initial console launch. In the context of their ECD calculation,
+	/// there is actually a semblance of truth to Microsoft's claim: the ECC calculation, which is keyed against a
+	/// value of 0x360325, indeed results in an 0x360 3-two-5% error rate.
+	/// </summary>
+	internal static void ComputeECD(Span<byte> value)
 	{
-		//uint mask  = 000003FF; // 0xFFFFFFFFFF030000 reversed
-
 		// accumulator vars
 		uint acc1 = 0;
 		uint acc2 = 0;
 
 		for (var i = 0; i < 128; i++, acc1 >>= 1) // foreach (bit in cpukey)
 		{
-			var bTmp = cpukeyData[i >> 3];
+			var bTmp = value[i >> 3];
 			uint dwTmp = (uint)((bTmp >> (i & 7)) & 1);
 
 			if (i < 0x6A) // if (i < 106) // (hammingweight * 2)
 			{
 				acc1 ^= dwTmp;
 				if ((acc1 & 1) > 0)
-					acc1 ^= 0x360325;
+					acc1 ^= 0x360325; // easter egg magic
 				acc2 ^= dwTmp;
 			}
 			else if (i < 0x7F) // else if (i != lastbit) // (127)
 			{
 				if (dwTmp != (acc1 & 1))
-					cpukeyData[i >> 3] = (byte)((1 << (i & 7)) ^ (bTmp & 0xFF));
+					value[i >> 3] = (byte)((1 << (i & 7)) ^ (bTmp & 0xFF));
 				acc2 ^= (acc1 & 1);
 			}
 			else if (dwTmp != acc2)
 			{
-				cpukeyData[0xF] = (byte)((0x80 ^ bTmp) & 0xFF); // ((128 ^ bTmp) & 0xFF)
+				value[0xF] = (byte)((0x80 ^ bTmp) & 0xFF); // ((128 ^ bTmp) & 0xFF)
 			}
 		}
 	}
-
-	internal static bool IsHexDigit(char value) => value is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
 }
 
 public class CPUKeyException : Exception
 {
 	public string Name { get; init; } = nameof(CPUKeyException);
 	public CPUKey CPUKey { get; init; }
-	internal CPUKeyException(string name, CPUKey cpukey) : base() => (Name, CPUKey) = (name, cpukey);
-	internal CPUKeyException(string name, CPUKey cpukey, string message) : base(message) => (Name, CPUKey) = (name, cpukey);
+	internal CPUKeyException(string name, CPUKey cpukey, string? message) : base(message) => (Name, CPUKey) = (name, cpukey);
 
 	public override string ToString()
 	{
@@ -357,20 +357,20 @@ public class CPUKeyException : Exception
 
 public sealed class CPUKeyDataInvalidException : CPUKeyException
 {
-	internal CPUKeyDataInvalidException(CPUKey cpukey) : base("Invalid Data", cpukey) { }
-	internal CPUKeyDataInvalidException(CPUKey cpukey, string message) : base("Invalid Data", cpukey, message) { }
+	internal CPUKeyDataInvalidException(CPUKey cpukey) : base("Invalid Data", cpukey, null) { }
+	internal CPUKeyDataInvalidException(CPUKey cpukey, string? message) : base("Invalid Data", cpukey, message) { }
 }
 
 public sealed class CPUKeyHammingWeightInvalidException : CPUKeyException
 {
-	internal CPUKeyHammingWeightInvalidException(CPUKey cpukey) : base("Invalid Hamming Weight", cpukey) { }
-	internal CPUKeyHammingWeightInvalidException(CPUKey cpukey, string message) : base("Invalid Hamming Weight", cpukey, message) { }
+	internal CPUKeyHammingWeightInvalidException(CPUKey cpukey) : base("Invalid Hamming Weight", cpukey, null) { }
+	internal CPUKeyHammingWeightInvalidException(CPUKey cpukey, string? message) : base("Invalid Hamming Weight", cpukey, message) { }
 }
 
 public sealed class CPUKeyECDInvalidException : CPUKeyException
 {
-	internal CPUKeyECDInvalidException(CPUKey cpukey) : base("Invalid ECD", cpukey) { }
-	internal CPUKeyECDInvalidException(CPUKey cpukey, string message) : base("Invalid ECD", cpukey, message) { }
+	internal CPUKeyECDInvalidException(CPUKey cpukey) : base("Invalid ECD", cpukey, null) { }
+	internal CPUKeyECDInvalidException(CPUKey cpukey, string? message) : base("Invalid ECD", cpukey, message) { }
 }
 
 public enum CPUKeyError
