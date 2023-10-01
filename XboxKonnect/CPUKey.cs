@@ -15,8 +15,7 @@ using System.Text;
 namespace SK;
 
 /// <summary>
-/// Encapsulates a 16-byte (32-character hexidecimal) Xbox 360 CPUKey,
-/// and provides parsing, validation, conversion, and utility methods.
+/// Encapsulates a 16-byte (32-character hexidecimal) Xbox 360 CPUKey, and provides parsing, validation, conversion, and utility methods.
 /// </summary>
 public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 {
@@ -40,7 +39,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// </summary>
 	/// <param name="other">A CPUKey instance.</param>
 	/// <exception cref="ArgumentNullException"><paramref name="other"/> is null.</exception>
-	public CPUKey(CPUKey other)
+	public CPUKey(CPUKey? other)
 	{
 		if (other is null)
 			throw new ArgumentNullException(nameof(other));
@@ -69,7 +68,8 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="Array"/> to validate and parse.</param>
 	/// <exception cref="ArgumentException"><paramref name="value"/> cannot be empty.</exception>
 	/// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> must be 32 hexidecimal chars long.</exception>
-	/// <exception cref="FormatException"><paramref name="value"/> cannot be all zeroes and must only contain hexidecimal digits.</exception>
+	/// <exception cref="FormatException"><paramref name="value"/> cannot be all zeroes and must only contain hexidecimal
+	/// digits.</exception>
 	/// <exception cref="CPUKeyHammingWeightException"></exception>
 	/// <exception cref="CPUKeyECDException"></exception>
 	public CPUKey(ReadOnlySpan<char> value)
@@ -119,25 +119,39 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// Validates the given CPUKey byte array, initializing a new CPUKey instance at <paramref name="cpukey"/>.
 	/// </summary>
 	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="Array"/> to validate and parse.</param>
-	/// <param name="cpukey">A new CPUKey instance.</param>
+	/// <param name="cpukey">
+	/// When this method returns, contains the <see cref="CPUKey"/> value equivalent of the byte sequence contained in <paramref
+	/// name="value"/>, if the conversion succeeded, or <see cref="Empty"/> if the conversion failed. The conversion fails if the
+	/// <paramref name="value"/> is not of the correct format. This parameter is passed uninitialized.
+	/// </param>
 	/// <returns>true if <paramref name="value"/> represents a valid CPUKey, otherwise false.</returns>
 	public static bool TryParse(ReadOnlySpan<byte> value, [NotNullWhen(true)] out CPUKey? cpukey)
 	{
-		cpukey = Parse(value);
-		return cpukey is not null;
+		cpukey = Parse(value) ?? Empty;
+		return cpukey != Empty;
 	}
 
 	/// <summary>
 	/// Validates the given CPUKey <see cref="String"/> representation, initializing a new CPUKey instance at <paramref name="cpukey"/>.
 	/// </summary>
 	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="String"/> to validate and parse.</param>
-	/// <param name="cpukey">A new CPUKey instance.</param>
+	/// <param name="cpukey">
+	/// When this method returns, contains the <see cref="CPUKey"/> value equivalent of the byte sequence contained in <paramref
+	/// name="value"/>, if the conversion succeeded, or <see cref="Empty"/> if the conversion failed. The conversion fails if the
+	/// <paramref name="value"/> is not of the correct format. This parameter is passed uninitialized.
+	/// </param>
 	/// <returns>true if <paramref name="value"/> represents a valid CPUKey, otherwise false.</returns>
 	public static bool TryParse(ReadOnlySpan<char> value, [NotNullWhen(true)] out CPUKey? cpukey)
 	{
-		cpukey = Parse(value);
-		return cpukey is not null;
+		cpukey = Parse(value) ?? Empty;
+		return cpukey != Empty;
 	}
+
+	/// <summary>
+	/// Determines whether the current CPUKey instance represents a valid CPUKey.
+	/// </summary>
+	/// <returns>true if the current instance is not equal to <see cref="Empty"/>; otherwise, false.</returns>
+	public bool IsValid() => !Equals(Empty);
 
 	public byte[] GetDigest() => SHA1.Create().ComputeHash(ToArray());
 
@@ -171,24 +185,20 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		_ => false
 	};
 
-	/// <summary>
-	/// Indicates whether the current object is equal to <paramref name="other"/>.
-	/// </summary>
-	/// <param name="other">The comparand as a <see cref="CPUKey"/>.</param>
-	/// <returns>true if the CPUKey instance is equal to <paramref name="other"/>, otherwise false.</returns>
+	/// <inheritdoc/>
 	public bool Equals([NotNullWhen(true)] CPUKey? other) => other is not null && data.Span.SequenceEqual(other.data.Span);
 
 	/// <summary>
 	/// Indicates whether the current object is equal to <paramref name="value"/>.
 	/// </summary>
-	/// <param name="value">The comparand <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="Array"/>.</param>
+	/// <param name="value">The byte array representation of a CPUKey.</param>
 	/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false.</returns>
 	public bool Equals(ReadOnlySpan<byte> value) => data.Span.SequenceEqual(value);
 
 	/// <summary>
 	/// Indicates whether the current object is equal to <paramref name="value"/>.
 	/// </summary>
-	/// <param name="value">The comparand <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="String"/>.</param>
+	/// <param name="value">The hex string representation of a CPUKey.</param>
 	/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false.</returns>
 	public bool Equals(ReadOnlySpan<char> value) => ToString().AsSpan().SequenceEqual(value);
 
@@ -210,9 +220,9 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	private static byte[] SanitizeInput(ReadOnlySpan<byte> value)
 	{
 		if (value.IsEmpty)
-			throw new ArgumentException("Value cannot be empty.");
+			throw new ArgumentException("Value cannot be empty.", nameof(value));
 		if (value.Length != ValidByteLen)
-			throw new ArgumentOutOfRangeException($"Value must be {ValidByteLen} bytes long.");
+			throw new ArgumentOutOfRangeException(nameof(value), value.ToArray(), $"Value must be {ValidByteLen} bytes long.");
 		if (All(value, x => x == 0x00))
 			throw new FormatException("Value cannot be all zeroes.");
 		return value.ToArray();
@@ -221,9 +231,9 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	private static byte[] SanitizeInput(ReadOnlySpan<char> value)
 	{
 		if (value.IsEmpty)
-			throw new ArgumentException("Value cannot be empty.");
+			throw new ArgumentException("Value cannot be empty.", nameof(value));
 		if (value.Length != ValidCharLen)
-			throw new ArgumentOutOfRangeException($"Value must be {ValidCharLen} hexidecimal chars long.");
+			throw new ArgumentOutOfRangeException(nameof(value), value.ToString(), $"Value must be {ValidCharLen} hexidecimal chars long.");
 		if (All(value, x => x == '0') || !All(value, x => IsHexDigit(x)))
 			throw new FormatException("Value cannot be all zeroes and must only contain hexidecimal digits.");
 		return Convert.FromHexString(value);
@@ -245,6 +255,12 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 
 	private static bool ValidateDataSafe(ReadOnlySpan<byte> value) => ValidateHammingWeight(value) && ValidateECD(value);
 
+	/// <summary>
+	/// Validates that the Hamming weight (non-zero bit count, or popcount) of the given data is 0x35. The ECD mask is used to exclude the
+	/// 22 bits designated for Error Correction and Detection (ECD) in the CPUKey.
+	/// </summary>
+	/// <param name="value">The CPUKey data bytes to validate.</param>
+	/// <returns>True if the Hamming weight is 0x35, false otherwise.</returns>
 	private static bool ValidateHammingWeight(ReadOnlySpan<byte> value)
 	{
 		// scratch space on the stack - faster than byte[] (no heap allocations)
@@ -266,6 +282,11 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		return hammingWeight == 0x35;
 	}
 
+	/// <summary>
+	/// Validates the Error Correction and Detection (ECD) bits within a CPUKey by comparing them against a re-computed set.
+	/// </summary>
+	/// <param name="value">The CPUKey data bytes to validate.</param>
+	/// <returns>True if the re-computed ECD matches the original, false otherwise.</returns>
 	private static bool ValidateECD(ReadOnlySpan<byte> value)
 	{
 		Span<byte> span = stackalloc byte[ValidByteLen];
@@ -275,11 +296,20 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	}
 
 	/// <summary>
-	/// While it is commonly believed that the Xbox 360 had a failure rate close to 30%, Microsoft "unnoficially"
-	/// claimed it to be only 3-5% shortly after the initial console launch. In the context of their ECD calculation,
-	/// there is actually a semblance of truth to Microsoft's claim: the ECC calculation, which is keyed against a
-	/// value of 0x360325, indeed results in an 0x360 3-two-5% error rate.
+	/// Calculates and updates the Error Checking and Correction (ECC) bits for the given CPUKey data bytes. These bits are used to detect
+	/// and correct single-bit errors, and to detect (but not correct) double-bit errors. The data in <paramref name="value"/> is modified
+	/// in-place.
+	/// <para>
+	/// It implements a type of binary Linear Feedback Shift Register (LFSR) for the ECC computation, relying on the Hamming weight, and
+	/// notably XOR'ing each set bit with the "magic" constant 0x360325.
+	/// </para>
 	/// </summary>
+	/// <remarks>
+	/// While it is commonly believed that the Xbox 360 had a failure rate close to 30%, Microsoft "unnoficially" claimed it to be only 3-5%
+	/// shortly after the initial console launch. In the context of their ECD calculation, there is actually a semblance of truth to
+	/// Microsoft's claim: the ECC calculation, which is keyed against a value of 0x360325, indeed results in an 0x360 3-two-5% error rate.
+	/// </remarks>
+	/// <param name="value">A Span containing the CPUKey's byte data for which to recalculate the ECC bits.</param>
 	private static void ComputeECD(Span<byte> value)
 	{
 		// accumulator vars
@@ -313,10 +343,10 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 
 	private static bool IsHexDigit(char value) => value is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
 
-	private static bool All<T>(ReadOnlySpan<T> span, Predicate<T> pred)
+	private static bool All<T>(ReadOnlySpan<T> span, Predicate<T> predicate)
 	{
 		for (int i = 0; i < span.Length; i++)
-			if (!pred(span[i]))
+			if (!predicate(span[i]))
 				return false;
 		return true;
 	}
@@ -325,7 +355,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 public class CPUKeyException : Exception
 {
 	public string Name { get; init; } = nameof(CPUKeyException);
-	public byte[] SourceData { get; init; }
+	public object SourceData { get; init; }
 	internal CPUKeyException(byte[] sourceData, string? message) : base(message) => SourceData = sourceData;
 	internal CPUKeyException(string name, byte[] sourceData, string? message) : base(message) => (Name, SourceData) = (name, sourceData);
 	public override string ToString()
