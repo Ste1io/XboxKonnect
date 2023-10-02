@@ -90,7 +90,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		using var rng = RandomNumberGenerator.Create();
 		do { rng.GetNonZeroBytes(span); } while (!ValidateHammingWeight(span));
 		ComputeECD(span);
-		return new CPUKey(span.ToArray());
+		return new CPUKey(span);
 	}
 
 	/// <summary>
