@@ -15,7 +15,10 @@ using System.Text;
 namespace SK;
 
 /// <summary>
-/// Encapsulates a 16-byte (32-character hexidecimal) Xbox 360 CPUKey, and provides parsing, validation, conversion, and utility methods.
+/// Encapsulates a 16-byte (32-character hexadecimal) Xbox 360 CPUKey, and provides parsing, validation, conversion, and utility methods. It
+/// is designed to be usable in collections that require fast look-up, comparison, and equality checks, such as <see
+/// cref="HashSet{CPUKey}"/>, <see cref="Dictionary{CPUKey, TValue}"/>, <see cref="List{CPUKey}"/>, <see cref="SortedSet{CPUKey}"/>, and
+/// <see cref="SortedDictionary{CPUKey, TValue}"/>.
 /// </summary>
 public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 {
@@ -120,9 +123,9 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// </summary>
 	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="Array"/> to validate and parse.</param>
 	/// <param name="cpukey">
-	/// When this method returns, contains the <see cref="CPUKey"/> value equivalent of the byte sequence contained in <paramref
-	/// name="value"/>, if the conversion succeeded, or <see cref="Empty"/> if the conversion failed. The conversion fails if the
-	/// <paramref name="value"/> is not of the correct format. This parameter is passed uninitialized.
+	/// When this method returns, contains the CPUKey value equivalent of the byte sequence contained in <paramref name="value"/>, if the
+	/// conversion succeeded, or <see cref="Empty"/> if the conversion failed. The conversion fails if the <paramref name="value"/> is not
+	/// of the correct format. This parameter is passed uninitialized.
 	/// </param>
 	/// <returns>true if <paramref name="value"/> represents a valid CPUKey, otherwise false.</returns>
 	public static bool TryParse(ReadOnlySpan<byte> value, [NotNullWhen(true)] out CPUKey? cpukey)
@@ -136,9 +139,9 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// </summary>
 	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="String"/> to validate and parse.</param>
 	/// <param name="cpukey">
-	/// When this method returns, contains the <see cref="CPUKey"/> value equivalent of the byte sequence contained in <paramref
-	/// name="value"/>, if the conversion succeeded, or <see cref="Empty"/> if the conversion failed. The conversion fails if the
-	/// <paramref name="value"/> is not of the correct format. This parameter is passed uninitialized.
+	/// When this method returns, contains the CPUKey value equivalent of the byte sequence contained in <paramref name="value"/>, if the
+	/// conversion succeeded, or <see cref="Empty"/> if the conversion failed. The conversion fails if the <paramref name="value"/> is not
+	/// of the correct format. This parameter is passed uninitialized.
 	/// </param>
 	/// <returns>true if <paramref name="value"/> represents a valid CPUKey, otherwise false.</returns>
 	public static bool TryParse(ReadOnlySpan<char> value, [NotNullWhen(true)] out CPUKey? cpukey)
@@ -152,8 +155,6 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// </summary>
 	/// <returns>true if the current instance is not equal to <see cref="Empty"/>; otherwise, false.</returns>
 	public bool IsValid() => !Equals(Empty);
-
-	public byte[] GetDigest() => SHA1.Create().ComputeHash(ToArray());
 
 	/// <summary>
 	/// Returns a <see cref="ReadOnlySpan{T}"/> from the current CPUKey instance.
@@ -176,7 +177,16 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <inheritdoc/>
 	public override int GetHashCode() => data.GetHashCode();
 
-	/// <inheritdoc/>
+	/// <summary>
+	/// Determines whether the specified object is equal to the current CPUKey instance.
+	/// </summary>
+	/// <param name="obj">The object to compare with the current instance.</param>
+	/// <returns>true if the specified object is equal to the current instance; otherwise, false.</returns>
+	/// <remarks>
+	/// Two CPUKey instances are considered equal if their underlying byte arrays are sequence-equal. This method can also compare against a
+	/// byte array or a hexidecimal string that represents a CPUKey. String comparisons are performed in an ordinal and case-insensitive
+	/// manner.
+	/// </remarks>
 	public override bool Equals([NotNullWhen(true)] object? obj) => obj switch
 	{
 		byte[] arr => Equals(arr),
@@ -185,24 +195,32 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		_ => false
 	};
 
-	/// <inheritdoc/>
+	/// <inheritdoc cref="Equals(object)"/>
+	/// <param name="other">The CPUKey to compare with the current instance.</param>
 	public bool Equals([NotNullWhen(true)] CPUKey? other) => other is not null && data.Span.SequenceEqual(other.data.Span);
 
-	/// <summary>
-	/// Indicates whether the current object is equal to <paramref name="value"/>.
-	/// </summary>
-	/// <param name="value">The byte array representation of a CPUKey.</param>
-	/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false.</returns>
+	/// <inheritdoc cref="Equals(object)"/>
+	/// <param name="value">The byte array to compare with the current instance.</param>
 	public bool Equals(ReadOnlySpan<byte> value) => data.Span.SequenceEqual(value);
 
-	/// <summary>
-	/// Indicates whether the current object is equal to <paramref name="value"/>.
-	/// </summary>
-	/// <param name="value">The hex string representation of a CPUKey.</param>
-	/// <returns>true if the CPUKey instance is equal to <paramref name="value"/>, otherwise false.</returns>
-	public bool Equals(ReadOnlySpan<char> value) => ToString().AsSpan().SequenceEqual(value);
+	/// <inheritdoc cref="Equals(object)"/>
+	/// <param name="value">The string to compare with the current instance.</param>
+	public bool Equals(ReadOnlySpan<char> value) => ToString().AsSpan().Equals(value, StringComparison.OrdinalIgnoreCase);
 
-	/// <inheritdoc/>
+	/// <summary>
+	/// Compares the current instance with another CPUKey object and returns an integer that indicates whether the current instance
+	/// precedes, follows, or occurs in the same position in the sort order as the other object.
+	/// </summary>
+	/// <param name="other">The CPUKey object to compare with this instance.</param>
+	/// <returns>
+	/// A value that indicates the relative order of the objects being compared. The return value has these meanings:
+	/// <br/>- Less than zero: This instance precedes <paramref name="other"/> in the sort order.
+	/// <br/>- Zero: This instance occurs in the same position in the sort order as <paramref name="other"/>.
+	/// <br/>- Greater than zero: This instance follows <paramref name="other"/> in the sort order.
+	/// </returns>
+	/// <remarks>
+	/// This method performs a lexographic byte-wise comparison using the underlying byte array of the CPUKey.
+	/// </remarks>
 	public int CompareTo(CPUKey? other) => other is not null ? data.Span.SequenceCompareTo(other.data.Span) : 1;
 
 	public static bool operator ==(CPUKey left, CPUKey right) => left.Equals(right);
@@ -296,20 +314,20 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	}
 
 	/// <summary>
-	/// Calculates and updates the Error Checking and Correction (ECC) bits for the given CPUKey data bytes. These bits are used to detect
+	/// Calculates and updates the Error Correction and Detection (ECD) bits for the given CPUKey data bytes. These bits are used to detect
 	/// and correct single-bit errors, and to detect (but not correct) double-bit errors. The data in <paramref name="value"/> is modified
 	/// in-place.
 	/// <para>
-	/// It implements a type of binary Linear Feedback Shift Register (LFSR) for the ECC computation, relying on the Hamming weight, and
+	/// It implements a type of binary Linear Feedback Shift Register (LFSR) for the ECD computation, relying on the Hamming weight, and
 	/// notably XOR'ing each set bit with the "magic" constant 0x360325.
 	/// </para>
 	/// </summary>
 	/// <remarks>
 	/// While it is commonly believed that the Xbox 360 had a failure rate close to 30%, Microsoft "unnoficially" claimed it to be only 3-5%
 	/// shortly after the initial console launch. In the context of their ECD calculation, there is actually a semblance of truth to
-	/// Microsoft's claim: the ECC calculation, which is keyed against a value of 0x360325, indeed results in an 0x360 3-two-5% error rate.
+	/// Microsoft's claim: the ECD calculation, which is keyed against a value of 0x360325, indeed results in an 0x360 3-two-5% error rate.
 	/// </remarks>
-	/// <param name="value">A Span containing the CPUKey's byte data for which to recalculate the ECC bits.</param>
+	/// <param name="value">A Span containing the CPUKey's byte data for which to recalculate the ECD bits.</param>
 	private static void ComputeECD(Span<byte> value)
 	{
 		// accumulator vars
@@ -350,6 +368,11 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 				return false;
 		return true;
 	}
+}
+
+public static partial class CPUKeyExtensions
+{
+	public static byte[] GetDigest(this CPUKey cpukey) => SHA1.Create().ComputeHash(cpukey.ToArray());
 }
 
 public class CPUKeyException : Exception
