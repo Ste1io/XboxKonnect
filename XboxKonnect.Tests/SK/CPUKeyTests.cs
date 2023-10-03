@@ -6,29 +6,26 @@ public class CPUKeyTests
 {
 	#region Test Data
 
-	public record CPUKeyData(string HexString, byte[]? ByteArray)
-	{
-		public CPUKeyData(string hexString) : this(hexString, Convert.FromHexString(hexString)) { }
-		public CPUKeyData(byte[] byteArray) : this(Convert.ToHexString(byteArray), byteArray) { }
-	}
+	private static bool IsHexString(string value) => value.Length % 2 == 0
+												  && value.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F');
 
-	private static readonly List<CPUKeyData> _validDataSource = new()
+	private static readonly List<(string Data, string Info)> _validDataSource = new()
 	{
-		new CPUKeyData("C0DE8DAAE05493BCB0F1664FB1751F00"), // uppercase
-		new CPUKeyData("c0de8daae05493bcb0f1664fb1751f00"), // lowercase
-		new CPUKeyData("C0DE8daae05493bcb0f1664fb1751F00"), // mixed case
+		("C0DE8DAAE05493BCB0F1664FB1751F00", "uppercase"),
+		("c0de8daae05493bcb0f1664fb1751f00", "lowercase"),
+		("C0DE8daae05493bcb0f1664fb1751F00", "mixed case"),
 	};
 
-	private static readonly List<CPUKeyData> _invalidDataSource = new()
+	private static readonly List<(string Data, string Info)> _invalidDataSource = new()
 	{
-		new CPUKeyData("C0DE DAAE05493BCB0F1664FB175 F00", null),  // with spaces
-		new CPUKeyData("C0DE8DAAE05493BCB0F1664FB1751F0", null),   // shorter than valid length
-		new CPUKeyData("C0DE8DAAE05493BCB0F1664FB1751F00F", null), // longer than valid length
-		new CPUKeyData("00000000000000000000000000000000"),        // all zeros
-		new CPUKeyData("STELIOKONTOSCANTC0DECLIFTONMSAID", null),  // non-hexidecimal characters
-		new CPUKeyData("12345678901234567890123456789012"),        // all numbers
-		new CPUKeyData("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|", null),  // all symbols
-		new CPUKeyData(""),                                        // empty string
+		("C0DE DAAE05493BCB0F1664FB175 F00",  "with spaces"),
+		("C0DE8DAAE05493BCB0F1664FB1751F0",   "< valid length"),
+		("C0DE8DAAE05493BCB0F1664FB1751F00F", "> valid length"),
+		("00000000000000000000000000000000",  "all zeros"),
+		("STELIOKONTOSCANTC0DECLIFTONMSAID",  "non-hex chars"),
+		("12345678901234567890123456789012",  "all numbers"),
+		("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|",  "all symbols"),
+		("",                                  "empty string"),
 	};
 
 	/// <summary>
@@ -43,10 +40,10 @@ public class CPUKeyTests
 		("C1DE8DAAE05493BCB0F1664FB1751F10", ExpectedHammingWeight: false, ExpectedECD: false),
 	};
 
-	public static IEnumerable<object[]> ValidBytesDataGenerator() => _validDataSource.Select(x => new object[] { x.ByteArray! });
-	public static IEnumerable<object[]> ValidStringDataGenerator() => _validDataSource.Select(x => new object[] { x.HexString });
-	public static IEnumerable<object[]> InvalidBytesDataGenerator() => _invalidDataSource.Where(x => x.ByteArray is not null).Select(x => new object[] { x.ByteArray! });
-	public static IEnumerable<object[]> InvalidStringDataGenerator() => _invalidDataSource.Select(x => new object[] { x.HexString });
+	public static IEnumerable<object[]> ValidBytesDataGenerator() => _validDataSource.Select(x => new object[] { Convert.FromHexString(x.Data), x.Info });
+	public static IEnumerable<object[]> ValidStringDataGenerator() => _validDataSource.Select(x => new object[] { x.Data, x.Info });
+	public static IEnumerable<object[]> InvalidBytesDataGenerator() => _invalidDataSource.Where(x => IsHexString(x.Data)).Select(x => new object[] { Convert.FromHexString(x.Data), x.Info });
+	public static IEnumerable<object[]> InvalidStringDataGenerator() => _invalidDataSource.Select(x => new object[] { x.Data, x.Info });
 	public static IEnumerable<object[]> ExceptionBytesDataGenerator() => _exceptionDataSource.Select(x => new object[] { Convert.FromHexString(x.Data), x.ExpectedHammingWeight, x.ExpectedECD });
 	public static IEnumerable<object[]> ExceptionStringDataGenerator() => _exceptionDataSource.Select(x => new object[] { x.Data, x.ExpectedHammingWeight, x.ExpectedECD });
 
@@ -187,7 +184,7 @@ public class CPUKeyTests
 	[Theory]
 	[Trait("Category", "Parse")]
 	[MemberData(nameof(ValidBytesDataGenerator))]
-	public void Parse_Bytes_ShouldReturnValidCPUKey(byte[] data)
+	public void Parse_Bytes_ShouldReturnValidCPUKey(byte[] data, string info)
 	{
 		var cpukey = CPUKey.Parse(data);
 		cpukey.ShouldNotBeNull();
@@ -198,7 +195,7 @@ public class CPUKeyTests
 	[Theory]
 	[Trait("Category", "Parse")]
 	[MemberData(nameof(ValidStringDataGenerator))]
-	public void Parse_String_ShouldReturnValidCPUKey(string data)
+	public void Parse_String_ShouldReturnValidCPUKey(string data, string info)
 	{
 		var cpukey = CPUKey.Parse(data);
 		cpukey.ShouldNotBeNull();
@@ -210,7 +207,7 @@ public class CPUKeyTests
 	[Theory]
 	[Trait("Category", "Parse")]
 	[MemberData(nameof(InvalidBytesDataGenerator))]
-	public void Parse_Bytes_ShouldReturnNullOnInvalidInput(byte[] data)
+	public void Parse_Bytes_ShouldReturnNullOnInvalidInput(byte[] data, string info)
 	{
 		var cpukey = CPUKey.Parse(data);
 		cpukey.ShouldBeNull();
@@ -219,7 +216,7 @@ public class CPUKeyTests
 	[Theory]
 	[Trait("Category", "Parse")]
 	[MemberData(nameof(InvalidStringDataGenerator))]
-	public void Parse_String_ShouldReturnNullOnInvalidInput(string data)
+	public void Parse_String_ShouldReturnNullOnInvalidInput(string data, string info)
 	{
 		var cpukey = CPUKey.Parse(data);
 		cpukey.ShouldBeNull();
@@ -248,7 +245,7 @@ public class CPUKeyTests
 	[Theory]
 	[Trait("Category", "TryParse")]
 	[MemberData(nameof(ValidBytesDataGenerator))]
-	public void TryParse_Bytes_ShouldReturnTrueAndValidCPUKey(byte[] data)
+	public void TryParse_Bytes_ShouldReturnTrueAndValidCPUKey(byte[] data, string info)
 	{
 		var result = CPUKey.TryParse(data, out var cpukey);
 		result.ShouldBeTrue();
@@ -261,7 +258,7 @@ public class CPUKeyTests
 	[Theory]
 	[Trait("Category", "TryParse")]
 	[MemberData(nameof(ValidStringDataGenerator))]
-	public void TryParse_String_ShouldReturnTrueAndValidCPUKey(string data)
+	public void TryParse_String_ShouldReturnTrueAndValidCPUKey(string data, string info)
 	{
 		var result = CPUKey.TryParse(data, out var cpukey);
 		result.ShouldBeTrue();
@@ -275,7 +272,7 @@ public class CPUKeyTests
 	[Theory]
 	[Trait("Category", "TryParse")]
 	[MemberData(nameof(InvalidBytesDataGenerator))]
-	public void TryParse_Bytes_ShouldReturnFalseAndEmptyCPUKey(byte[] data)
+	public void TryParse_Bytes_ShouldReturnFalseAndEmptyCPUKey(byte[] data, string info)
 	{
 		var result = CPUKey.TryParse(data, out var cpukey);
 		result.ShouldBeFalse();
@@ -287,7 +284,7 @@ public class CPUKeyTests
 	[Theory]
 	[Trait("Category", "TryParse")]
 	[MemberData(nameof(InvalidStringDataGenerator))]
-	public void TryParse_String_ShouldReturnFalseAndEmptyCPUKey(string data)
+	public void TryParse_String_ShouldReturnFalseAndEmptyCPUKey(string data, string info)
 	{
 		var result = CPUKey.TryParse(data, out var cpukey);
 		result.ShouldBeFalse();
