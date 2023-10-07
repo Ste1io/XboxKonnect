@@ -205,7 +205,7 @@ public class CPUKeyTests
 	{
 		var cpukey = CPUKey.Parse(data);
 		cpukey.ShouldNotBeNull();
-		cpukey.IsValid().ShouldBeTrue();
+		cpukey.IsValid().ShouldBeTrue(info);
 		cpukey.ToArray().ShouldBe(data);
 	}
 
@@ -216,7 +216,7 @@ public class CPUKeyTests
 	{
 		var cpukey = CPUKey.Parse(data);
 		cpukey.ShouldNotBeNull();
-		cpukey.IsValid().ShouldBeTrue();
+		cpukey.IsValid().ShouldBeTrue(info);
 		cpukey.ToString().ShouldBe(data.ToUpper());
 		String.Equals(cpukey.ToString(), data, StringComparison.OrdinalIgnoreCase).ShouldBeTrue();
 	}
@@ -227,7 +227,7 @@ public class CPUKeyTests
 	public void Parse_Bytes_ShouldReturnNullOnInvalidInput(byte[] data, string info)
 	{
 		var cpukey = CPUKey.Parse(data);
-		cpukey.ShouldBeNull();
+		cpukey.ShouldBeNull(info);
 	}
 
 	[Theory]
@@ -236,7 +236,7 @@ public class CPUKeyTests
 	public void Parse_String_ShouldReturnNullOnInvalidInput(string data, string info)
 	{
 		var cpukey = CPUKey.Parse(data);
-		cpukey.ShouldBeNull();
+		cpukey.ShouldBeNull(info);
 	}
 
 	[Theory]
@@ -246,7 +246,7 @@ public class CPUKeyTests
 	{
 		var cpukey = Should.NotThrow(() => CPUKey.Parse(data));
 		if (!expectedHammingWeight || !expectedECD)
-			cpukey.ShouldBeNull();
+			cpukey.ShouldBeNull(info);
 	}
 
 	[Theory]
@@ -256,7 +256,7 @@ public class CPUKeyTests
 	{
 		var cpukey = Should.NotThrow(() => CPUKey.Parse(data));
 		if (!expectedHammingWeight || !expectedECD)
-			cpukey.ShouldBeNull();
+			cpukey.ShouldBeNull(info);
 	}
 
 	[Theory]
@@ -268,7 +268,7 @@ public class CPUKeyTests
 		result.ShouldBeTrue();
 		cpukey.ShouldNotBeNull();
 		cpukey.ShouldNotBe(CPUKey.Empty);
-		cpukey.IsValid().ShouldBeTrue();
+		cpukey.IsValid().ShouldBeTrue(info);
 		cpukey.ToArray().ShouldBe(data);
 	}
 
@@ -281,7 +281,7 @@ public class CPUKeyTests
 		result.ShouldBeTrue();
 		cpukey.ShouldNotBeNull();
 		cpukey.ShouldNotBe(CPUKey.Empty);
-		cpukey.IsValid().ShouldBeTrue();
+		cpukey.IsValid().ShouldBeTrue(info);
 		cpukey.ToString().ShouldBe(data.ToUpper());
 		String.Equals(cpukey.ToString(), data, StringComparison.OrdinalIgnoreCase).ShouldBeTrue();
 	}
@@ -295,7 +295,7 @@ public class CPUKeyTests
 		result.ShouldBeFalse();
 		cpukey.ShouldNotBeNull();
 		cpukey.ShouldBe(CPUKey.Empty);
-		cpukey.IsValid().ShouldBeFalse();
+		cpukey.IsValid().ShouldBeFalse(info);
 	}
 
 	[Theory]
@@ -307,7 +307,7 @@ public class CPUKeyTests
 		result.ShouldBeFalse();
 		cpukey.ShouldNotBeNull();
 		cpukey.ShouldBe(CPUKey.Empty);
-		cpukey.IsValid().ShouldBeFalse();
+		cpukey.IsValid().ShouldBeFalse(info);
 	}
 
 	[Fact]
@@ -333,7 +333,7 @@ public class CPUKeyTests
 		if (expectedHammingWeight && expectedECD)
 		{
 			var cpuKey = Should.NotThrow(() => new CPUKey(data));
-			cpuKey.IsValid().ShouldBeTrue();
+			cpuKey.IsValid().ShouldBeTrue(info);
 		}
 		else
 		{
@@ -350,7 +350,7 @@ public class CPUKeyTests
 		if (expectedHammingWeight && expectedECD)
 		{
 			var cpuKey = Should.NotThrow(() => new CPUKey(data));
-			cpuKey.IsValid().ShouldBeTrue();
+			cpuKey.IsValid().ShouldBeTrue(info);
 		}
 		else
 		{
