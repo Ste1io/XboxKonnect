@@ -1,11 +1,11 @@
-﻿/*
+/*
  * XboxKonnect - Xbox Auto Discovery API
- * 
+ *
  * Created: 10/24/2017
  * Author:  Daniel McClintock (alias: Stelio Kontos)
- * 
+ *
  * Copyright (c) 2017 Daniel McClintock
- * 
+ *
  */
 
 using System.Diagnostics;
@@ -33,7 +33,7 @@ namespace SK.XboxKonnect
 		/// <summary>
 		/// Stores all current console connections, disconnections, and basic connection details.
 		/// </summary>
-		public Dictionary<IPAddress, Connection> Connections { get; private set; } = new Dictionary<IPAddress, Connection>();
+		public Dictionary<IPAddress, Connection> Connections { get; private set; } = new();
 
 		/// <summary>
 		/// Returns whether connection scanning is currently active or not.

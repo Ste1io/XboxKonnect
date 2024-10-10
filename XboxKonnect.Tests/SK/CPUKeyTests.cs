@@ -66,8 +66,9 @@ public class CPUKeyTests
 
 	#endregion
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	#region Creation Tests
+
+	[Fact, Trait("Category", "Constructor")]
 	public void DefaultConstructor_ShouldCreateEmptyCPUKey()
 	{
 		var cpukey = new CPUKey();
@@ -77,8 +78,7 @@ public class CPUKeyTests
 		cpukey.IsValid().ShouldBeFalse();
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void CopyConstructor_ShouldCreateIdenticalCPUKey()
 	{
 		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
@@ -88,15 +88,13 @@ public class CPUKeyTests
 		copy.ShouldNotBeSameAs(cpukey);
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void CopyConstructor_ShouldThrowWhenNull()
 	{
 		Should.Throw<ArgumentNullException>(() => new CPUKey(default(CPUKey)));
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void Constructor_ByteArray_ShouldCreateValidCPUKey()
 	{
 		Byte[] array = new byte[] { 0xC0, 0xDE, 0x8D, 0xAA, 0xE0, 0x54, 0x93, 0xBC, 0xB0, 0xF1, 0x66, 0x4F, 0xB1, 0x75, 0x1F, 0x00 };
@@ -106,8 +104,7 @@ public class CPUKeyTests
 		cpukey.ToArray().ShouldBe(array);
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void Constructor_String_ShouldCreateValidCPUKey()
 	{
 		String str = "C0DE8DAAE05493BCB0F1664FB1751F00";
@@ -117,8 +114,7 @@ public class CPUKeyTests
 		cpukey.ToString().ShouldBe(str);
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void Constructor_ByteSpan_ShouldCreateValidCPUKey()
 	{
 		ReadOnlySpan<byte> span = stackalloc byte[] { 0xC0, 0xDE, 0x8D, 0xAA, 0xE0, 0x54, 0x93, 0xBC, 0xB0, 0xF1, 0x66, 0x4F, 0xB1, 0x75, 0x1F, 0x00 };
@@ -128,8 +124,7 @@ public class CPUKeyTests
 		cpukey.AsSpan().SequenceEqual(span).ShouldBeTrue();
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void Constructor_CharSpan_ShouldCreateValidCPUKey()
 	{
 		ReadOnlySpan<char> span = stackalloc char[] { 'C', '0', 'D', 'E', '8', 'D', 'A', 'A', 'E', '0', '5', '4', '9', '3', 'B', 'C', 'B', '0', 'F', '1', '6', '6', '4', 'F', 'B', '1', '7', '5', '1', 'F', '0', '0' };
@@ -139,16 +134,14 @@ public class CPUKeyTests
 		cpukey.ToString().AsSpan().SequenceEqual(span).ShouldBeTrue();
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void Constructor_ShouldThrowOnEmptySpan()
 	{
 		Should.Throw<ArgumentException>(() => new CPUKey(ReadOnlySpan<byte>.Empty));
 		Should.Throw<ArgumentException>(() => new CPUKey(ReadOnlySpan<char>.Empty));
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void Constructor_ShouldThrowOnLessThanValidLength()
 	{
 		// Less than 16 bytes (32 hex chars) is invalid
@@ -156,8 +149,7 @@ public class CPUKeyTests
 		Should.Throw<ArgumentOutOfRangeException>(() => new CPUKey(new char[31]));
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void Constructor_ShouldThrowOnGreaterThanValidLength()
 	{
 		// More than 16 bytes (32 hex chars) is invalid
@@ -165,23 +157,20 @@ public class CPUKeyTests
 		Should.Throw<ArgumentOutOfRangeException>(() => new CPUKey(new char[33]));
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void Constructor_ShouldThrowOnAllZeroes()
 	{
 		Should.Throw<FormatException>(() => new CPUKey(Enumerable.Repeat<byte>(0x00, 16).ToArray()));
 		Should.Throw<FormatException>(() => new CPUKey(Enumerable.Repeat<char>('0', 32).ToArray()));
 	}
 
-	[Fact]
-	[Trait("Category", "Constructor")]
+	[Fact, Trait("Category", "Constructor")]
 	public void Constructor_ShouldThrowOnNonHexChars()
 	{
 		Should.Throw<FormatException>(() => new CPUKey(Enumerable.Range(0, 32).Select(_ => (char)Random.Shared.Next('G', 'Z' + 1)).ToArray()));
 	}
 
-	[Fact]
-	[Trait("Category", "Factory Method")]
+	[Fact, Trait("Category", "Factory Method")]
 	public void CreateRandom_ShouldReturnValidCPUKey()
 	{
 		var cpukey = CPUKey.CreateRandom();
@@ -190,16 +179,14 @@ public class CPUKeyTests
 		cpukey.IsValid().ShouldBeTrue();
 	}
 
-	[Fact]
-	[Trait("Category", "Factory Method")]
+	[Fact, Trait("Category", "Factory Method")]
 	public void CreateRandom_ShouldReturnRandomCPUKey()
 	{
 		var cpukeys = Enumerable.Range(0, 100).Select(_ => CPUKey.CreateRandom()).ToList();
 		cpukeys.ShouldAllBe(key => cpukeys.Count(k => k == key) == 1);
 	}
 
-	[Theory]
-	[Trait("Category", "Parse")]
+	[Theory, Trait("Category", "Parse")]
 	[MemberData(nameof(ValidDataGenerator), typeof(byte[]))]
 	public void Parse_Bytes_ShouldReturnValidCPUKey(byte[] data, string info)
 	{
@@ -209,8 +196,7 @@ public class CPUKeyTests
 		cpukey.ToArray().ShouldBe(data);
 	}
 
-	[Theory]
-	[Trait("Category", "Parse")]
+	[Theory, Trait("Category", "Parse")]
 	[MemberData(nameof(ValidDataGenerator), typeof(string))]
 	public void Parse_String_ShouldReturnValidCPUKey(string data, string info)
 	{
@@ -221,8 +207,7 @@ public class CPUKeyTests
 		String.Equals(cpukey.ToString(), data, StringComparison.OrdinalIgnoreCase).ShouldBeTrue();
 	}
 
-	[Theory]
-	[Trait("Category", "Parse")]
+	[Theory, Trait("Category", "Parse")]
 	[MemberData(nameof(InvalidDataGenerator), typeof(byte[]))]
 	public void Parse_Bytes_ShouldReturnNullOnInvalidInput(byte[] data, string info)
 	{
@@ -230,8 +215,7 @@ public class CPUKeyTests
 		cpukey.ShouldBeNull(info);
 	}
 
-	[Theory]
-	[Trait("Category", "Parse")]
+	[Theory, Trait("Category", "Parse")]
 	[MemberData(nameof(InvalidDataGenerator), typeof(string))]
 	public void Parse_String_ShouldReturnNullOnInvalidInput(string data, string info)
 	{
@@ -239,8 +223,7 @@ public class CPUKeyTests
 		cpukey.ShouldBeNull(info);
 	}
 
-	[Theory]
-	[Trait("Category", "Parse")]
+	[Theory, Trait("Category", "Parse")]
 	[MemberData(nameof(ExceptionDataGenerator), typeof(byte[]))]
 	public void Parse_Bytes_ShouldNotThrow(byte[] data, bool expectedHammingWeight, bool expectedECD, string info)
 	{
@@ -249,8 +232,7 @@ public class CPUKeyTests
 			cpukey.ShouldBeNull(info);
 	}
 
-	[Theory]
-	[Trait("Category", "Parse")]
+	[Theory, Trait("Category", "Parse")]
 	[MemberData(nameof(ExceptionDataGenerator), typeof(string))]
 	public void Parse_String_ShouldNotThrow(string data, bool expectedHammingWeight, bool expectedECD, string info)
 	{
@@ -259,8 +241,7 @@ public class CPUKeyTests
 			cpukey.ShouldBeNull(info);
 	}
 
-	[Theory]
-	[Trait("Category", "TryParse")]
+	[Theory, Trait("Category", "TryParse")]
 	[MemberData(nameof(ValidDataGenerator), typeof(byte[]))]
 	public void TryParse_Bytes_ShouldReturnTrueAndValidCPUKey(byte[] data, string info)
 	{
@@ -272,8 +253,7 @@ public class CPUKeyTests
 		cpukey.ToArray().ShouldBe(data);
 	}
 
-	[Theory]
-	[Trait("Category", "TryParse")]
+	[Theory, Trait("Category", "TryParse")]
 	[MemberData(nameof(ValidDataGenerator), typeof(string))]
 	public void TryParse_String_ShouldReturnTrueAndValidCPUKey(string data, string info)
 	{
@@ -286,8 +266,7 @@ public class CPUKeyTests
 		String.Equals(cpukey.ToString(), data, StringComparison.OrdinalIgnoreCase).ShouldBeTrue();
 	}
 
-	[Theory]
-	[Trait("Category", "TryParse")]
+	[Theory, Trait("Category", "TryParse")]
 	[MemberData(nameof(InvalidDataGenerator), typeof(byte[]))]
 	public void TryParse_Bytes_ShouldReturnFalseAndEmptyCPUKey(byte[] data, string info)
 	{
@@ -298,8 +277,7 @@ public class CPUKeyTests
 		cpukey.IsValid().ShouldBeFalse(info);
 	}
 
-	[Theory]
-	[Trait("Category", "TryParse")]
+	[Theory, Trait("Category", "TryParse")]
 	[MemberData(nameof(InvalidDataGenerator), typeof(string))]
 	public void TryParse_String_ShouldReturnFalseAndEmptyCPUKey(string data, string info)
 	{
@@ -310,23 +288,24 @@ public class CPUKeyTests
 		cpukey.IsValid().ShouldBeFalse(info);
 	}
 
-	[Fact]
-	[Trait("Category", "Validation")]
+	#endregion
+
+	#region Validation Tests
+
+	[Fact, Trait("Category", "Validation")]
 	public void IsValid_ShouldReturnTrueForValidCPUKey()
 	{
 		new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00").IsValid().ShouldBeTrue();
 	}
 
-	[Fact]
-	[Trait("Category", "Validation")]
+	[Fact, Trait("Category", "Validation")]
 	public void IsValid_ShouldReturnFalseForEmptyCPUKey()
 	{
 		CPUKey.Empty.IsValid().ShouldBeFalse();
 		new CPUKey().IsValid().ShouldBeFalse();
 	}
 
-	[Theory]
-	[Trait("Category", "Validation")]
+	[Theory, Trait("Category", "Validation")]
 	[MemberData(nameof(ExceptionDataGenerator), typeof(byte[]))]
 	public void InvalidByteArrays_ShouldThrowCorrectExceptionType(byte[] data, bool expectedHammingWeight, bool expectedECD, string info)
 	{
@@ -342,8 +321,7 @@ public class CPUKeyTests
 		}
 	}
 
-	[Theory]
-	[Trait("Category", "Validation")]
+	[Theory, Trait("Category", "Validation")]
 	[MemberData(nameof(ExceptionDataGenerator), typeof(string))]
 	public void InvalidStrings_ShouldThrowCorrectExceptionType(string data, bool expectedHammingWeight, bool expectedECD, string info)
 	{
@@ -365,6 +343,8 @@ public class CPUKeyTests
 		(_, false) => typeof(CPUKeyECDException),
 		_ => typeof(CPUKeyException)
 	};
+
+	#endregion
 
 	#region Scratch
 
