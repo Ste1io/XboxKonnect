@@ -346,6 +346,145 @@ public class CPUKeyTests
 
 	#endregion
 
+	#region Equality & Comparison Tests
+
+	[Fact, Trait("Category", "Equality")]
+	public void Equals_WithNullObject_ShouldReturnFalse()
+	{
+		CPUKey? nullcpukey = default;
+		CPUKey.Empty.Equals(nullcpukey).ShouldBeFalse();
+		CPUKey.Empty.Equals(null as object).ShouldBeFalse();
+		new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00").Equals(null as object).ShouldBeFalse();
+
+	}
+
+	[Fact, Trait("Category", "Equality")]
+	public void Equals_WithItself_ShouldReturnTrue()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var empty = new CPUKey();
+		cpukey.Equals(cpukey).ShouldBeTrue();
+		empty.Equals(empty).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Equality")]
+	public void Equals_WithIdenticalCPUKey_ShouldReturnTrue()
+	{
+		var hexstring = "C0DE8DAAE05493BCB0F1664FB1751F00";
+		var cpukey = new CPUKey(hexstring);
+		var copy = new CPUKey(hexstring);
+		cpukey.ToString().ShouldBe(copy.ToString());
+		cpukey.Equals(copy).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Equality")]
+	public void Equals_WithDifferentCPUKey_ShouldReturnFalse()
+	{
+		var cpukey1 = CPUKey.CreateRandom();
+		var cpukey2 = CPUKey.CreateRandom();
+		cpukey1.ToString().ShouldNotBe(cpukey2.ToString());
+		cpukey1.Equals(cpukey2).ShouldBeFalse();
+	}
+
+	[Fact, Trait("Category", "Equality")]
+	public void Equals_WithByteArrayHavingSameData_ShouldReturnTrue()
+	{
+		var array1 = new byte[] { 0xC0, 0xDE, 0x8D, 0xAA, 0xE0, 0x54, 0x93, 0xBC, 0xB0, 0xF1, 0x66, 0x4F, 0xB1, 0x75, 0x1F, 0x00 };
+		var array2 = new byte[] { 0xC0, 0xDE, 0x8D, 0xAA, 0xE0, 0x54, 0x93, 0xBC, 0xB0, 0xF1, 0x66, 0x4F, 0xB1, 0x75, 0x1F, 0x00 };
+		array1.ShouldBe(array2);
+		new CPUKey(array1).Equals(array2).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Equality")]
+	public void Equals_WithByteArrayHavingDifferentData_ShouldReturnFalse()
+	{
+		var array1 = new byte[] { 0xC0, 0xDE, 0x8D, 0xAA, 0xE0, 0x54, 0x93, 0xBC, 0xB0, 0xF1, 0x66, 0x4F, 0xB1, 0x75, 0x1F, 0x00 };
+		var array2 = new byte[] { 0xC0, 0xDE, 0x8D, 0xAA, 0xE0, 0x54, 0x93, 0xBC, 0xB0, 0xF1, 0x66, 0x4F, 0xB1, 0x75, 0x1F, 0x01 };
+		array1.ShouldNotBe(array2);
+		new CPUKey(array1).Equals(array2).ShouldBeFalse();
+	}
+
+	[Fact, Trait("Category", "Equality")]
+	public void Equals_WithStringHavingSameData_ShouldReturnTrue()
+	{
+		var hexstring = "C0DE8DAAE05493BCB0F1664FB1751F00";
+		var cpukey = new CPUKey(hexstring);
+		cpukey.ToString().ShouldBe(hexstring);
+		cpukey.Equals(hexstring).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Equality")]
+	public void Equals_WithStringHavingSameDataDifferentCase_ShouldReturnTrue()
+	{
+		var hexupper = "C0DE8DAAE05493BCB0F1664FB1751F00";
+		var hexlower = hexupper.ToLowerInvariant();
+		new CPUKey(hexupper).Equals(hexlower).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Equality")]
+	public void Equals_WithStringHavingDifferentData_ShouldReturnFalse()
+	{
+		var hexstring1 = "C0DE8DAAE05493BCB0F1664FB1751F00";
+		var hexstring2 = "C0DE8DAAE05493BCB0F1664FB1751F0F";
+		hexstring1.ShouldNotBe(hexstring2);
+		new CPUKey(hexstring1).Equals(hexstring2).ShouldBeFalse();
+	}
+
+	[Fact, Trait("Category", "Equality")]
+	public void Equals_WithNonCPUKeyObject_ShouldReturnFalse()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		cpukey.Equals(new object()).ShouldBeFalse();
+		cpukey.Equals(new byte[16]).ShouldBeFalse();
+		cpukey.Equals(new char[32]).ShouldBeFalse();
+		cpukey.Equals(new List<byte>()).ShouldBeFalse();
+		cpukey.Equals(new List<char>()).ShouldBeFalse();
+		cpukey.Equals(new List<object>()).ShouldBeFalse();
+		cpukey.Equals(new List<string>()).ShouldBeFalse();
+		cpukey.Equals(new List<CPUKey>()).ShouldBeFalse();
+		cpukey.Equals(new object[] { }).ShouldBeFalse();
+	}
+
+	[Fact, Trait("Category", "IComparable")]
+	public void CompareTo_WithNull_ShouldReturnPositive()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		cpukey.CompareTo(null).ShouldBePositive();
+	}
+
+	[Fact, Trait("Category", "IComparable")]
+	public void CompareTo_WithItself_ShouldReturnZero()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		cpukey.CompareTo(cpukey).ShouldBe(0);
+	}
+
+	[Fact, Trait("Category", "IComparable")]
+	public void CompareTo_WithSmallerCPUKey_ShouldReturnPositive()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
+		cpukey1.CompareTo(cpukey2).ShouldBePositive();
+	}
+
+	[Fact, Trait("Category", "IComparable")]
+	public void CompareTo_WithLargerCPUKey_ShouldReturnNegative()
+	{
+		var cpukey1 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		cpukey1.CompareTo(cpukey2).ShouldBeNegative();
+	}
+
+	[Fact, Trait("Category", "IComparable")]
+	public void CompareTo_WithEqualCPUKey_ShouldReturnZero()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		cpukey1.CompareTo(cpukey2).ShouldBe(0);
+	}
+
+	#endregion
+
 	#region Scratch
 
 	protected static CPUKey GenValidCPUKey
