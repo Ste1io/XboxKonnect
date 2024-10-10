@@ -485,6 +485,94 @@ public class CPUKeyTests
 
 	#endregion
 
+	#region Operators Tests
+
+	[Fact, Trait("Category", "Operators")]
+	public void EqualityOperator_WithEqualCPUKeys_ShouldReturnTrue()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		(cpukey1 == cpukey2).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Operators")]
+	public void InequalityOperator_WithDifferentCPUKeys_ShouldReturnTrue()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
+		(cpukey1 != cpukey2).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Operators")]
+	public void EqualityOperator_WithEqualByteArray_ShouldReturnTrue()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var array = new byte[] { 0xC0, 0xDE, 0x8D, 0xAA, 0xE0, 0x54, 0x93, 0xBC, 0xB0, 0xF1, 0x66, 0x4F, 0xB1, 0x75, 0x1F, 0x00 };
+		(cpukey == array).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Operators")]
+	public void InequalityOperator_WithDifferentByteArray_ShouldReturnTrue()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var array = new byte[] { 0xC0, 0xB3, 0x3D, 0x79, 0xA7, 0x4B, 0xE3, 0x83, 0x2B, 0x0E, 0x61, 0x72, 0xAC, 0x49, 0x1F, 0x00 };
+		(cpukey != array).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Operators")]
+	public void EqualityOperator_WithEqualString_ShouldReturnTrue()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var str = "C0DE8DAAE05493BCB0F1664FB1751F00";
+		(cpukey == str).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Operators")]
+	public void InequalityOperator_WithDifferentString_ShouldReturnTrue()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var str = "C0B33D79A74BE3832B0E6172AC491F00";
+		(cpukey != str).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Operators")]
+	public void LessThanOperator_WithSmallerCPUKey_ShouldReturnTrue()
+	{
+		var cpukey1 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		(cpukey1 < cpukey2).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Operators")]
+	public void LessThanOrEqualToOperator_WithSmallerOrEqualCPUKey_ShouldReturnTrue()
+	{
+		var cpukey1 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey3 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		(cpukey1 <= cpukey2).ShouldBeTrue();
+		(cpukey2 <= cpukey3).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Operators")]
+	public void GreaterThanOperator_WithLargerCPUKey_ShouldReturnTrue()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
+		(cpukey1 > cpukey2).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Operators")]
+	public void GreaterThanOrEqualToOperator_WithLargerOrEqualCPUKey_ShouldReturnTrue()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
+		var cpukey3 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
+		(cpukey1 >= cpukey2).ShouldBeTrue();
+		(cpukey2 >= cpukey3).ShouldBeTrue();
+	}
+
+	#endregion
+
 	#region Scratch
 
 	protected static CPUKey GenValidCPUKey
