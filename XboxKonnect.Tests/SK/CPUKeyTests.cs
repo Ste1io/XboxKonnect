@@ -18,29 +18,33 @@ public class CPUKeyTests
 
 	private static readonly List<(string Data, string Info)> _invalidDataSource = new()
 	{
-		("C0DE DAAE05493BCB0F1664FB175 F00",  "with spaces"),
-		("C0DE8DAAE05493BCB0F1664FB1751F0",   "< valid length"),
-		("C0DE8DAAE05493BCB0F1664FB1751F00F", "> valid length"),
-		("00000000000000000000000000000000",  "all zeros"),
-		("STELIOKONTOSCANTC0DECLIFTONMSAID",  "non-hex chars"),
-		("12345678901234567890123456789012",  "all numbers"),
-		("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|",  "all symbols"),
-		("",                                  "empty string"),
+		("C0DE DAAE05493BCB0F1664FB175 F00",   "with spaces"),
+		("C0DE8DAAE05493BCB0F1664FB1751F",     "< valid length"),
+		("C0DE8DAAE05493BCB0F1664FB1751F00FF", "> valid length"),
+		("00000000000000000000000000000000",   "all zeros"),
+		("12345678901234567890123456789012",   "all numbers"),
+		("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|",   "all symbols"),
+		("STELIOKONTOSCANTC0DECLIFTONMSAID",   "non-hex chars"),
+		("C0DE8DAAE05493BCB0F1664FB1751F0",    "not a multiple of 2"),
+		("",                                   "empty"),
 	};
 
 	/// <remarks>
-	/// The ECD is invalidated by flipping one of the 22 bits designated for Error Correction and Detection within the CPUKey string. An
-	/// invalid Hamming Weight is created by flipping one of the remaining 106 bits to ensure a popcount other than 53.
+	/// The ECD is invalidated by flipping one of the 22 bits designated for Error Correction and Detection within the CPUKey string.
+	/// An invalid Hamming Weight is created by flipping one of the remaining 106 bits to ensure a popcount other than 53.
 	/// </remarks>
 	/// <seealso cref="CPUKey.ValidateHammingWeight"/>
 	/// <seealso cref="CPUKey.ComputeECD"/>
 	private static readonly List<(string Data, bool ExpectedHammingWeight, bool ExpectedECD, string Info)> _exceptionDataSource = new()
 	{
-		("C0DE8DAAE05493BCB0F1664FB1751F00", ExpectedHammingWeight: true,  ExpectedECD: true,  "valid Hamming Weight and ECD"),
-		("C0DE8DAAE05493BCB0F1664FB1751F10", ExpectedHammingWeight: true,  ExpectedECD: false, "valid Hamming Weight, invalid ECD"),
-		("C1DE8DAAE05493BCB0F1664FB1751F00", ExpectedHammingWeight: false, ExpectedECD: true,  "invalid Hamming Weight, valid ECD"),
-		("C1DE8DAAE05493BCB0F1664FB1751F10", ExpectedHammingWeight: false, ExpectedECD: false, "invalid Hamming Weight and ECD"),
+		("C0DE8DAAE05493BCB0F1664FB1751F00", ExpectedHammingWeight: true,  ExpectedECD: true,  "Hamming Weight: valid, ECD: valid"),
+		("C0DE8DAAE05493BCB0F1664FB1751F10", ExpectedHammingWeight: true,  ExpectedECD: false, "Hamming Weight: valid, ECD: invalid"),
+		("C1DE8DAAE05493BCB0F1664FB1751F10", ExpectedHammingWeight: false, ExpectedECD: false, "Hamming Weight: invalid, ECD: invalid"),
+		("C1DE8DAAE05493BCB0F1664FB1751F00", ExpectedHammingWeight: false, ExpectedECD: true,  "Hamming Weight: invalid, ECD: valid"),
 	};
+
+	private static void InvalidateHammingWeight(Span<byte> span) => span[1] ^= 0x01;
+	private static void InvalidateECD(Span<byte> span) => span[^1] ^= 0x01;
 
 	public static IEnumerable<object[]> ValidDataGenerator(Type type)
 		=> from x in _validDataSource
@@ -63,6 +67,27 @@ public class CPUKeyTests
 			   Type t when t == typeof(string) => x.Data,
 			   Type t when t == typeof(byte[]) => Convert.FromHexString(x.Data),
 			   _ => throw new NotImplementedException() }, x.ExpectedHammingWeight, x.ExpectedECD, x.Info };
+
+	public static IEnumerable<object[]> MalformedDataGenerator(Type type)
+	{
+		if (type == typeof(byte[]))
+		{
+			yield return new object[] { Array.Empty<byte>(), "empty array" };
+			yield return new object[] { Enumerable.Repeat(0x0, 16).Select(i => (byte)i).ToArray(), "all zeroes" };
+			yield return new object[] { Enumerable.Repeat(0x1, 15).Select(i => (byte)i).ToArray(), "too short" };
+			yield return new object[] { Enumerable.Repeat(0x1, 17).Select(i => (byte)i).ToArray(), "too long" };
+		}
+		else if (type == typeof(string))
+		{
+			yield return new object[] { String.Empty, "empty string" };
+			yield return new object[] { new string('Z', 32), "non-hex characters" };
+			yield return new object[] { new string('0', 32), "all zeroes" };
+			yield return new object[] { new string('1', 31), "too short" };
+			yield return new object[] { new string('1', 33), "too long" };
+		}
+	}
+
+	// TODO: Distinguish between malformed (format) and invalid (content) data
 
 	#endregion
 
@@ -190,7 +215,7 @@ public class CPUKeyTests
 	[MemberData(nameof(ValidDataGenerator), typeof(byte[]))]
 	public void Parse_Bytes_ShouldReturnValidCPUKey(byte[] data, string info)
 	{
-		var cpukey = CPUKey.Parse(data);
+		var cpukey = Should.NotThrow(() => CPUKey.Parse(data));
 		cpukey.ShouldNotBeNull();
 		cpukey.IsValid().ShouldBeTrue(info);
 		cpukey.ToArray().ShouldBe(data);
@@ -200,7 +225,7 @@ public class CPUKeyTests
 	[MemberData(nameof(ValidDataGenerator), typeof(string))]
 	public void Parse_String_ShouldReturnValidCPUKey(string data, string info)
 	{
-		var cpukey = CPUKey.Parse(data);
+		var cpukey = Should.NotThrow(() => CPUKey.Parse(data));
 		cpukey.ShouldNotBeNull();
 		cpukey.IsValid().ShouldBeTrue(info);
 		cpukey.ToString().ShouldBe(data.ToUpper());
@@ -209,36 +234,16 @@ public class CPUKeyTests
 
 	[Theory, Trait("Category", "Parse")]
 	[MemberData(nameof(InvalidDataGenerator), typeof(byte[]))]
-	public void Parse_Bytes_ShouldReturnNullOnInvalidInput(byte[] data, string info)
+	public void Parse_Bytes_ShouldThrowOnInvalidInput(byte[] data, string info)
 	{
-		var cpukey = CPUKey.Parse(data);
-		cpukey.ShouldBeNull(info);
+		Should.Throw<Exception>(() => CPUKey.Parse(data)).Message.ShouldNotBeNull(info);
 	}
 
 	[Theory, Trait("Category", "Parse")]
 	[MemberData(nameof(InvalidDataGenerator), typeof(string))]
-	public void Parse_String_ShouldReturnNullOnInvalidInput(string data, string info)
+	public void Parse_String_ShouldThrowOnInvalidInput(string data, string info)
 	{
-		var cpukey = CPUKey.Parse(data);
-		cpukey.ShouldBeNull(info);
-	}
-
-	[Theory, Trait("Category", "Parse")]
-	[MemberData(nameof(ExceptionDataGenerator), typeof(byte[]))]
-	public void Parse_Bytes_ShouldNotThrow(byte[] data, bool expectedHammingWeight, bool expectedECD, string info)
-	{
-		var cpukey = Should.NotThrow(() => CPUKey.Parse(data));
-		if (!expectedHammingWeight || !expectedECD)
-			cpukey.ShouldBeNull(info);
-	}
-
-	[Theory, Trait("Category", "Parse")]
-	[MemberData(nameof(ExceptionDataGenerator), typeof(string))]
-	public void Parse_String_ShouldNotThrow(string data, bool expectedHammingWeight, bool expectedECD, string info)
-	{
-		var cpukey = Should.NotThrow(() => CPUKey.Parse(data));
-		if (!expectedHammingWeight || !expectedECD)
-			cpukey.ShouldBeNull(info);
+		Should.Throw<Exception>(() => CPUKey.Parse(data)).Message.ShouldNotBeNull(info);
 	}
 
 	[Theory, Trait("Category", "TryParse")]
@@ -267,25 +272,63 @@ public class CPUKeyTests
 	}
 
 	[Theory, Trait("Category", "TryParse")]
-	[MemberData(nameof(InvalidDataGenerator), typeof(byte[]))]
-	public void TryParse_Bytes_ShouldReturnFalseAndEmptyCPUKey(byte[] data, string info)
+	[MemberData(nameof(MalformedDataGenerator), typeof(byte[]))]
+	public void TryParse_Bytes_ShouldReturnFalseAndNullCPUKeyOnMalformedInput(byte[] data, string info)
 	{
 		var result = CPUKey.TryParse(data, out var cpukey);
 		result.ShouldBeFalse();
-		cpukey.ShouldNotBeNull();
-		cpukey.ShouldBe(CPUKey.Empty);
-		cpukey.IsValid().ShouldBeFalse(info);
+		cpukey.ShouldBeNull(info);
 	}
 
 	[Theory, Trait("Category", "TryParse")]
-	[MemberData(nameof(InvalidDataGenerator), typeof(string))]
-	public void TryParse_String_ShouldReturnFalseAndEmptyCPUKey(string data, string info)
+	[MemberData(nameof(MalformedDataGenerator), typeof(string))]
+	public void TryParse_String_ShouldReturnFalseAndNullCPUKeyOnMalformedInput(string data, string info)
 	{
 		var result = CPUKey.TryParse(data, out var cpukey);
 		result.ShouldBeFalse();
+		cpukey.ShouldBeNull(info);
+	}
+
+	[Theory, Trait("Category", "TryParse")]
+	[MemberData(nameof(ExceptionDataGenerator), typeof(byte[]))]
+	public void TryParse_Bytes_ShouldReturnFalseAndEmptyCPUKeyOnInvalidInput(byte[] data, bool expectedHammingWeight, bool expectedECD, string info)
+	{
+		CPUKey? cpukey = default;
+		var result = Should.NotThrow(() => CPUKey.TryParse(data, out cpukey));
 		cpukey.ShouldNotBeNull();
-		cpukey.ShouldBe(CPUKey.Empty);
-		cpukey.IsValid().ShouldBeFalse(info);
+
+		if (!expectedHammingWeight || !expectedECD)
+		{
+			result.ShouldBeFalse();
+			cpukey.ShouldBe(CPUKey.Empty);
+			cpukey.IsValid().ShouldBeFalse();
+		}
+		else
+		{
+			result.ShouldBeTrue();
+			cpukey.IsValid().ShouldBeTrue(info);
+		}
+	}
+
+	[Theory, Trait("Category", "TryParse")]
+	[MemberData(nameof(ExceptionDataGenerator), typeof(string))]
+	public void TryParse_String_ShouldReturnFalseAndEmptyCPUKeyOnInvalidInput(string data, bool expectedHammingWeight, bool expectedECD, string info)
+	{
+		CPUKey? cpukey = default;
+		var result = Should.NotThrow(() => CPUKey.TryParse(data, out cpukey));
+		cpukey.ShouldNotBeNull();
+
+		if (!expectedHammingWeight || !expectedECD)
+		{
+			result.ShouldBeFalse();
+			cpukey.ShouldBe(CPUKey.Empty);
+			cpukey.IsValid().ShouldBeFalse();
+		}
+		else
+		{
+			result.ShouldBeTrue();
+			cpukey.IsValid().ShouldBeTrue(info);
+		}
 	}
 
 	#endregion
@@ -309,15 +352,15 @@ public class CPUKeyTests
 	[MemberData(nameof(ExceptionDataGenerator), typeof(byte[]))]
 	public void InvalidByteArrays_ShouldThrowCorrectExceptionType(byte[] data, bool expectedHammingWeight, bool expectedECD, string info)
 	{
-		if (expectedHammingWeight && expectedECD)
-		{
-			var cpuKey = Should.NotThrow(() => new CPUKey(data));
-			cpuKey.IsValid().ShouldBeTrue(info);
-		}
-		else
+		if (!expectedHammingWeight || !expectedECD)
 		{
 			var exception = Should.Throw<CPUKeyException>(() => new CPUKey(data));
 			exception.ShouldBeOfType(GetCPUKeyExceptionType(expectedHammingWeight, expectedECD));
+		}
+		else
+		{
+			var cpukey = Should.NotThrow(() => new CPUKey(data));
+			cpukey.IsValid().ShouldBeTrue(info);
 		}
 	}
 
@@ -325,15 +368,15 @@ public class CPUKeyTests
 	[MemberData(nameof(ExceptionDataGenerator), typeof(string))]
 	public void InvalidStrings_ShouldThrowCorrectExceptionType(string data, bool expectedHammingWeight, bool expectedECD, string info)
 	{
-		if (expectedHammingWeight && expectedECD)
-		{
-			var cpuKey = Should.NotThrow(() => new CPUKey(data));
-			cpuKey.IsValid().ShouldBeTrue(info);
-		}
-		else
+		if (!expectedHammingWeight || !expectedECD)
 		{
 			var exception = Should.Throw<CPUKeyException>(() => new CPUKey(data));
 			exception.ShouldBeOfType(GetCPUKeyExceptionType(expectedHammingWeight, expectedECD));
+		}
+		else
+		{
+			var cpukey = Should.NotThrow(() => new CPUKey(data));
+			cpukey.IsValid().ShouldBeTrue(info);
 		}
 	}
 
@@ -355,7 +398,6 @@ public class CPUKeyTests
 		CPUKey.Empty.Equals(nullcpukey).ShouldBeFalse();
 		CPUKey.Empty.Equals(null as object).ShouldBeFalse();
 		new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00").Equals(null as object).ShouldBeFalse();
-
 	}
 
 	[Fact, Trait("Category", "Equality")]

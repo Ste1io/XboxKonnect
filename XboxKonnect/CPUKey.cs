@@ -1,5 +1,5 @@
-﻿/*
- * CPUKey class
+/*
+ * CPUKey class - v3.0.0
  * Created: 01/20/2020
  * Author:  Daniel McClintock (alias: Stelio Kontos)
  *
@@ -97,58 +97,57 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	}
 
 	/// <summary>
-	/// Creates a new CPUKey instance from a byte array.
+	/// Creates a new CPUKey instance from the given byte <see cref="Array"/>.
 	/// </summary>
-	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="Array"/> to validate and parse.</param>
-	/// <returns>If parsing succeeds, a new CPUKey object, otherwise null.</returns>
-	public static CPUKey? Parse(ReadOnlySpan<byte> value) => SanitizeInputSafe(value) switch
-	{
-		byte[] bytes when ValidateDataSafe(bytes) => new CPUKey(bytes),
-		_ => default
-	};
+	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a byte sequence to parse and validate.</param>
+	/// <returns>A new CPUKey instance if parsing and validation succeed.</returns>
+	/// <exception cref="ArgumentException"><paramref name="value"/> is empty.</exception>
+	/// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is not 16 bytes long.</exception>
+	/// <exception cref="FormatException"><paramref name="value"/> is all zeroes.</exception>
+	/// <exception cref="CPUKeyHammingWeightException"><paramref name="value"/> has an invalid Hamming weight.</exception>
+	/// <exception cref="CPUKeyECDException"><paramref name="value"/> failed ECD validation.</exception>
+	public static CPUKey Parse(ReadOnlySpan<byte> value) => ParseInternal(SanitizeInput(value));
 
 	/// <summary>
-	/// Creates a new CPUKey instance from a <see cref="String"/>.
+	/// Creates a new CPUKey instance from the given hexidecimal <see cref="String"/>.
 	/// </summary>
-	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="String"/> to validate and parse.</param>
-	/// <returns>If parsing succeeds, a new CPUKey object, otherwise null.</returns>
-	public static CPUKey? Parse(ReadOnlySpan<char> value) => SanitizeInputSafe(value) switch
-	{
-		byte[] bytes when ValidateDataSafe(bytes) => new CPUKey(bytes),
-		_ => default
-	};
+	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a hexidecimal string to parse and validate.</param>
+	/// <returns>A new CPUKey instance if parsing and validation succeed.</returns>
+	/// <exception cref="ArgumentException"><paramref name="value"/> is empty.</exception>
+	/// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is not 32 hexidecimal characters long.</exception>
+	/// <exception cref="FormatException"><paramref name="value"/> is all zeroes or contains a non-hex character.</exception>
+	/// <exception cref="CPUKeyHammingWeightException"><paramref name="value"/> has an invalid Hamming weight.</exception>
+	/// <exception cref="CPUKeyECDException"><paramref name="value"/> failed ECD validation.</exception>
+	public static CPUKey Parse(ReadOnlySpan<char> value) => ParseInternal(SanitizeInput(value));
 
 	/// <summary>
-	/// Validates the given CPUKey byte array, initializing a new CPUKey instance at <paramref name="cpukey"/>.
+	/// Parses and validates the given byte <see cref="Array"/>, initializing a new CPUKey instance at <paramref name="cpukey"/>. If the
+	/// input is malformed, <paramref name="cpukey"/> is passed uninitialized. If the input is well-formed but invalid, <paramref
+	/// name="cpukey"/> is set to <see cref="Empty"/>.
 	/// </summary>
-	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="Array"/> to validate and parse.</param>
+	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> containing the byte sequence to parse and validate.</param>
 	/// <param name="cpukey">
-	/// When this method returns, contains the CPUKey value equivalent of the byte sequence contained in <paramref name="value"/>, if the
-	/// conversion succeeded, or <see cref="Empty"/> if the conversion failed. The conversion fails if the <paramref name="value"/> is not
-	/// of the correct format. This parameter is passed uninitialized.
+	/// When this method returns, contains the CPUKey value equivalent of the byte sequence contained in <paramref name="value"/> if the
+	/// conversion succeeded. If the conversion fails sanity checks, <paramref name="cpukey"/> is set to null to signify that the input was
+	/// malformed. If the conversion fails due to validation errors, <paramref name="cpukey"/> is set to <see cref="Empty"/> to
+	/// signifiy a well-formed but invalid CPUKey.
 	/// </param>
-	/// <returns>true if <paramref name="value"/> represents a valid CPUKey, otherwise false.</returns>
-	public static bool TryParse(ReadOnlySpan<byte> value, [NotNullWhen(true)] out CPUKey? cpukey)
-	{
-		cpukey = Parse(value) ?? Empty;
-		return cpukey != Empty;
-	}
+	/// <returns>true if <paramref name="value"/> represents a valid CPUKey; otherwise, false.</returns>
+	public static bool TryParse(ReadOnlySpan<byte> value, [NotNullWhen(true)] out CPUKey? cpukey) => TryParseInternal(SanitizeInputSafe(value), out cpukey);
 
 	/// <summary>
-	/// Validates the given CPUKey <see cref="String"/> representation, initializing a new CPUKey instance at <paramref name="cpukey"/>.
+	/// Parses and validates the given hexidecimal <see cref="String"/>, initializing a new CPUKey instance at <paramref name="cpukey"/> if
+	/// successful; otherwise, setting it to null or <see cref="Empty"/> to signify a malformed or invalid CPUKey.
 	/// </summary>
-	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a CPUKey <see cref="String"/> to validate and parse.</param>
+	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> containing the hexidecimal string to parse and validate.</param>
 	/// <param name="cpukey">
-	/// When this method returns, contains the CPUKey value equivalent of the byte sequence contained in <paramref name="value"/>, if the
-	/// conversion succeeded, or <see cref="Empty"/> if the conversion failed. The conversion fails if the <paramref name="value"/> is not
-	/// of the correct format. This parameter is passed uninitialized.
+	/// When this method returns, contains the CPUKey value equivalent of the hexidecimal string contained in <paramref name="value"/> if
+	/// the conversion succeeded. If the conversion fails sanity checks, <paramref name="cpukey"/> is set to null to signify that the input
+	/// was malformed. If the conversion fails due to validation errors, <paramref name="cpukey"/> is set to <see cref="Empty"/> to
+	/// signifiy a well-formed but invalid CPUKey.
 	/// </param>
-	/// <returns>true if <paramref name="value"/> represents a valid CPUKey, otherwise false.</returns>
-	public static bool TryParse(ReadOnlySpan<char> value, [NotNullWhen(true)] out CPUKey? cpukey)
-	{
-		cpukey = Parse(value) ?? Empty;
-		return cpukey != Empty;
-	}
+	/// <returns>true if <paramref name="value"/> represents a valid CPUKey; otherwise, false.</returns>
+	public static bool TryParse(ReadOnlySpan<char> value, [NotNullWhen(true)] out CPUKey? cpukey) => TryParseInternal(SanitizeInputSafe(value), out cpukey);
 
 	/// <summary>
 	/// Determines whether the current CPUKey instance represents a valid CPUKey.
@@ -171,7 +170,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <summary>
 	/// Returns the <see cref="String"/> representation of the CPUKey object.
 	/// </summary>
-	/// <returns>A UTF-16 encoded <see cref="String"/> representing the CPUKey.</returns>
+	/// <returns>A UTF-16 encoded hexidecimal <see cref="String"/> representing the CPUKey.</returns>
 	public override string ToString() => Convert.ToHexString(data.Span);
 
 	/// <inheritdoc/>
@@ -235,6 +234,24 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	public static bool operator >(CPUKey left, CPUKey right) => left.CompareTo(right) > 0;
 	public static bool operator >=(CPUKey left, CPUKey right) => left.CompareTo(right) >= 0;
 
+	private static CPUKey ParseInternal(ReadOnlySpan<byte> sanitizedValue)
+	{
+		ValidateData(sanitizedValue);
+		return new CPUKey(sanitizedValue);
+	}
+
+	private static bool TryParseInternal(ReadOnlySpan<byte> sanitizedValue, [NotNullWhen(true)] out CPUKey? cpukey)
+	{
+		cpukey = sanitizedValue switch
+		{
+			_ when sanitizedValue.IsEmpty => default, // malformed, pass uninitialized
+			_ when !ValidateDataSafe(sanitizedValue) => Empty, // invalid, pass Empty
+			_ => new CPUKey(sanitizedValue) // well-formed and validated
+		};
+
+		return cpukey?.IsValid() ?? false;
+	}
+
 	private static byte[] SanitizeInput(ReadOnlySpan<byte> value)
 	{
 		if (value.IsEmpty)
@@ -251,17 +268,17 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		if (value.IsEmpty)
 			throw new ArgumentException("Value cannot be empty.", nameof(value));
 		if (value.Length != ValidCharLen)
-			throw new ArgumentOutOfRangeException(nameof(value), value.ToString(), $"Value must be {ValidCharLen} hexidecimal chars long.");
+			throw new ArgumentOutOfRangeException(nameof(value), value.ToString(), $"Value must be {ValidCharLen} hexidecimal characters long.");
 		if (All(value, x => x == '0') || !All(value, x => IsHexDigit(x)))
 			throw new FormatException("Value cannot be all zeroes and must only contain hexidecimal digits.");
 		return Convert.FromHexString(value);
 	}
 
 	private static byte[]? SanitizeInputSafe(ReadOnlySpan<byte> value)
-		=> value.IsEmpty || value.Length != ValidByteLen ? default : value.ToArray();
+		=> value.IsEmpty || value.Length != ValidByteLen || All(value, x => x == 0x00) ? default : value.ToArray();
 
 	private static byte[]? SanitizeInputSafe(ReadOnlySpan<char> value)
-		=> value.IsEmpty || value.Length != ValidCharLen || !All(value, x => IsHexDigit(x)) ? default : Convert.FromHexString(value);
+		=> value.IsEmpty || value.Length != ValidCharLen || All(value, x => x == '0') || !All(value, x => IsHexDigit(x)) ? default : Convert.FromHexString(value);
 
 	private static void ValidateData(ReadOnlySpan<byte> value)
 	{
@@ -271,7 +288,8 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 			throw new CPUKeyECDException(value.ToArray());
 	}
 
-	private static bool ValidateDataSafe(ReadOnlySpan<byte> value) => ValidateHammingWeight(value) && ValidateECD(value);
+	private static bool ValidateDataSafe(ReadOnlySpan<byte> value)
+		=> ValidateHammingWeight(value) && ValidateECD(value);
 
 	/// <summary>
 	/// Validates that the Hamming weight (non-zero bit count, or popcount) of the given data is 0x35. The ECD mask is used to exclude the
