@@ -608,7 +608,7 @@ public class CPUKeyTests
 	public void GetHashCode_DifferentCPUKeyInstances_ShouldReturnDifferentHashCode()
 	{
 		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
-		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F0F");
+		var cpukey2 = new CPUKey("C0FE2270D42B8FABBD5D4B0D402FCF00");
 		cpukey1.ShouldNotBe(cpukey2);
 		cpukey1.GetHashCode().ShouldNotBe(cpukey2.GetHashCode());
 	}
