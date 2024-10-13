@@ -1,5 +1,5 @@
 /*
- * CPUKey class - v3.0.2
+ * CPUKey class - v3.1.0
  * Created: 01/20/2020
  * Author:  Daniel McClintock (alias: Stelio Kontos)
  *
@@ -152,7 +152,6 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <returns>true if <paramref name="value"/> represents a valid CPUKey; otherwise, false.</returns>
 	public static bool TryParse(ReadOnlySpan<char> value, [NotNullWhen(true)] out CPUKey? cpukey) => TryParseInternal(SanitizeInputSafe(value), out cpukey);
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static bool TryParseInternal(ReadOnlySpan<byte> sanitizedValue, [NotNullWhen(true)] out CPUKey? cpukey)
 	{
 		cpukey = sanitizedValue switch
@@ -189,19 +188,36 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <returns>A UTF-16 encoded hexidecimal <see cref="String"/> representing the CPUKey.</returns>
 	public override string ToString() => Convert.ToHexString(data.Span);
 
-	/// <inheritdoc/>
-	public override int GetHashCode() => data.GetHashCode();
+	/// <summary>
+	/// Generates a hash code for the current CPUKey instance, optimized for performance and collision resistance. This implementation
+	/// treats the underlying 16-byte data as two 64-bit integers, applies XOR folding to combine them, and mixes the result using a large
+	/// prime multiplier to ensure good hash distribution.
+	/// </summary>
+	/// <remarks>
+	/// The method leverages <see cref="MemoryMarshal"/> to perform memory-efficient reads without allocations. XOR folding helps capture
+	/// small differences between CPUKeys, while the prime multiplier spreads out hash values to minimize collisions in hash-based
+	/// collections. This hash code is suitable for use in high-performance collections such as <see cref="HashSet{T}"/> and <see
+	/// cref="Dictionary{TKey, TValue}"/>.
+	/// </remarks>
+	/// <returns>A 32-bit integer hash code representing the CPUKey.</returns>
+	public override int GetHashCode()
+	{
+		var parts = MemoryMarshal.Cast<byte, ulong>(data.Span); // reinterpret as ulongs
+		var hash = parts[0] ^ parts[1]; // xor-fold
+		hash *= 0x9E3779B185EBCA87UL; // golden ratio
+		return (int)(hash ^ (hash >> 32)); // mix bits and truncate
+	}
 
 	/// <summary>
 	/// Determines whether the specified object is equal to the current CPUKey instance.
 	/// </summary>
-	/// <param name="obj">The object to compare with the current instance.</param>
-	/// <returns>true if the specified object is equal to the current instance; otherwise, false.</returns>
 	/// <remarks>
 	/// Two CPUKey instances are considered equal if their underlying byte arrays are sequence-equal. This method can also compare against a
 	/// byte array or a hexidecimal string that represents a CPUKey. String comparisons are performed in an ordinal and case-insensitive
 	/// manner.
 	/// </remarks>
+	/// <param name="obj">The object to compare with the current instance.</param>
+	/// <returns>true if the specified object is equal to the current instance; otherwise, false.</returns>
 	public override bool Equals([NotNullWhen(true)] object? obj) => obj switch
 	{
 		byte[] arr => Equals(arr),
@@ -226,6 +242,9 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// Compares the current instance with another CPUKey object and returns an integer that indicates whether the current instance
 	/// precedes, follows, or occurs in the same position in the sort order as the other object.
 	/// </summary>
+	/// <remarks>
+	/// This method performs a lexographic byte-wise comparison using the underlying byte array of the CPUKey.
+	/// </remarks>
 	/// <param name="other">The CPUKey object to compare with this instance.</param>
 	/// <returns>
 	/// A value that indicates the relative order of the objects being compared. The return value has these meanings:
@@ -233,9 +252,6 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <br/>- Zero: This instance occurs in the same position in the sort order as <paramref name="other"/>.
 	/// <br/>- Greater than zero: This instance follows <paramref name="other"/> in the sort order.
 	/// </returns>
-	/// <remarks>
-	/// This method performs a lexographic byte-wise comparison using the underlying byte array of the CPUKey.
-	/// </remarks>
 	public int CompareTo(CPUKey? other) => other is not null ? data.Span.SequenceCompareTo(other.data.Span) : 1;
 
 	public static bool operator ==(CPUKey left, CPUKey right) => left.Equals(right);
@@ -307,7 +323,6 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// </summary>
 	/// <param name="value">The CPUKey data bytes to validate.</param>
 	/// <returns>True if the re-computed ECD matches the original, false otherwise.</returns>
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static bool VerifyECD(ReadOnlySpan<byte> value)
 	{
 		Span<byte> span = stackalloc byte[ValidByteLen];
@@ -386,6 +401,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		}
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static bool IsHexCharacter(char value)
 		=> value is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
 
