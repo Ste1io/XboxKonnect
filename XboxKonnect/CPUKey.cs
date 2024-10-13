@@ -20,10 +20,12 @@ namespace SK;
 /// methods. It is designed to be highly performant with minimal memory footprint. Optimized hardware intrinsics are used when possible, and
 /// efficient use of stack-allocated buffers for scratch storage and direct memory access to the underlying data buffer avoid unnecessary
 /// allocations and copies.
-/// CPUKey instances can be used in collections that require fast look-up, comparison, sorting, and equality checks, such as
-/// <see cref="List{CPUKey}"/>, <see cref="HashSet{CPUKey}"/>, <see cref="Dictionary{CPUKey, TValue}"/>, <see cref="SortedSet{CPUKey}"/>,
-/// and <see cref="SortedDictionary{CPUKey, TValue}"/>.
 /// </summary>
+/// <remarks>
+/// CPUKey instances can be used in collections that require fast look-up, comparison, sorting, and equality checks,
+/// such as <see cref="List{CPUKey}"/>, <see cref="HashSet{CPUKey}"/>, <see cref="Dictionary{CPUKey, TValue}"/>, <see
+/// cref="SortedSet{CPUKey}"/>, and <see cref="SortedDictionary{CPUKey, TValue}"/>.
+/// </remarks>
 public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 {
 	private static readonly int ValidByteLen = 0x10;

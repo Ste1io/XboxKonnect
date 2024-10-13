@@ -45,9 +45,6 @@ public class CPUKeyTests
 		("C1DE8DAAE05493BCB0F1664FB1751F00", ExpectedHammingWeight: false, ExpectedECD: true,  "Hamming Weight: invalid, ECD: valid"),
 	};
 
-	private static void InvalidateHammingWeight(Span<byte> span) => span[1] ^= 0x01;
-	private static void InvalidateECD(Span<byte> span) => span[^1] ^= 0x01;
-
 	public static IEnumerable<object[]> ValidDataGenerator(Type type)
 		=> from x in _validDataSource
 		   select new object[] { type switch {
@@ -595,6 +592,145 @@ public class CPUKeyTests
 	}
 
 	#endregion
+
+	#region Collection Tests
+
+	[Fact, Trait("Category", "Collections")]
+	public void GetHashCode_SameCPUKeyInstances_ShouldReturnSameHashCode()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		cpukey1.ShouldBe(cpukey2);
+		cpukey1.GetHashCode().ShouldBe(cpukey2.GetHashCode());
+	}
+
+	[Fact, Trait("Category", "Collections")]
+	public void GetHashCode_DifferentCPUKeyInstances_ShouldReturnDifferentHashCode()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F0F");
+		cpukey1.ShouldNotBe(cpukey2);
+		cpukey1.GetHashCode().ShouldNotBe(cpukey2.GetHashCode());
+	}
+
+	// HashSet<CPUKey>:
+	//   Because CPUKey overriddes GetHashCode and Equals, we can use it in a HashSet.
+
+	[Fact, Trait("Category", "Collections")]
+	public void Add_MultipleIdenticalCPUKeysToHashSet_ShouldContainOne()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var hashset = new HashSet<CPUKey> { cpukey, cpukey, cpukey };
+		hashset.Count.ShouldBe(1);
+	}
+
+	[Fact, Trait("Category", "Collections")]
+	public void Remove_ExistingCPUKeyFromHashSet_ShouldSucceed()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var hashset = new HashSet<CPUKey> { cpukey };
+		hashset.Count.ShouldBe(1);
+		hashset.Remove(cpukey).ShouldBeTrue();
+		hashset.Count.ShouldBe(0);
+	}
+
+	[Fact, Trait("Category", "Collections")]
+	public void Contains_CPUKeyInHashSet_ShouldReturnTrue()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var hashset = new HashSet<CPUKey> { cpukey };
+		hashset.Contains(cpukey).ShouldBeTrue();
+	}
+
+	// Dictionary<CPUKey, TValue>:
+	//   Because CPUKey overriddes GetHashCode and Equals, we can use it as a key in a dictionary.
+
+	[Fact, Trait("Category", "Collections")]
+	public void Add_MultipleIdenticalCPUKeysToDictionary_ShouldThrowException()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var dictionary = new Dictionary<CPUKey, string> { { cpukey, "foo" } };
+		Should.Throw<ArgumentException>(() => dictionary.Add(cpukey, "bar"));
+	}
+
+	[Fact, Trait("Category", "Collections")]
+	public void Remove_ExistingCPUKeyFromDictionary_ShouldSucceed()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var dictionary = new Dictionary<CPUKey, string> { { cpukey, "foo" } };
+		dictionary.Count.ShouldBe(1);
+		dictionary.Remove(cpukey).ShouldBeTrue();
+		dictionary.Count.ShouldBe(0);
+	}
+
+	[Fact, Trait("Category", "Collections")]
+	public void Retrieve_ValueUsingCPUKeyFromDictionary_ShouldSucceed()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var dictionary = new Dictionary<CPUKey, string> { { cpukey, "foo" } };
+
+		dictionary[cpukey].ShouldBe("foo");
+
+		dictionary.TryGetValue(cpukey, out var value).ShouldBeTrue();
+		value.ShouldBe("foo");
+	}
+
+	// List<CPUKey>, CPUKey[]:
+	//   Because CPUKey implements IComparable<CPUKey>, we can easily sort these collections.
+
+	[Fact, Trait("Category", "Collections")]
+	public void Sort_ListOfCPUKeys_ShouldBeInAscendingOrder()
+	{
+		var list = new List<CPUKey> { CPUKey.CreateRandom(), CPUKey.CreateRandom(), CPUKey.CreateRandom() };
+		list.Sort();
+		list[0].ShouldBeLessThan(list[1]);
+		list[1].ShouldBeLessThan(list[2]);
+	}
+
+	// SortedSet<CPUKey>, SortedDictionary<CPUKey, TValue>:
+	//   Because CPUKey implements IComparable<CPUKey>, these collections can maintain their elements in sorted order.
+
+	[Fact, Trait("Category", "Collections")]
+	public void Add_MultipleIdenticalCPUKeysToSortedSet_ShouldContainOne()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var sortedset = new SortedSet<CPUKey> { cpukey, cpukey, cpukey };
+		sortedset.Count.ShouldBe(1);
+	}
+
+	[Fact, Trait("Category", "Collections")]
+	public void Retrieve_FirstAndLastFromSortedSet_ShouldBeCorrect()
+	{
+		var cpukey1 = new CPUKey("C0FE2270D42B8FABBD5D4B0D402FCF00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey3 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
+		var sortedset = new SortedSet<CPUKey> { cpukey1, cpukey2, cpukey3 };
+		sortedset.First().ShouldBe(cpukey3);
+		sortedset.Last().ShouldBe(cpukey1);
+	}
+
+	[Fact, Trait("Category", "Collections")]
+	public void Add_MultipleIdenticalCPUKeysToSortedDictionary_ShouldThrowException()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var sorteddictionary = new SortedDictionary<CPUKey, string> { { cpukey, "foo" } };
+		Should.Throw<ArgumentException>(() => sorteddictionary.Add(cpukey, "bar"));
+	}
+
+	[Fact, Trait("Category", "Collections")]
+	public void Retrieve_FirstAndLastFromSortedDictionary_ShouldBeCorrect()
+	{
+		var cpukey1 = new CPUKey("C0FE2270D42B8FABBD5D4B0D402FCF00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey3 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
+		var sorteddictionary = new SortedDictionary<CPUKey, string> { { cpukey1, "foo" }, { cpukey2, "bar" }, { cpukey3, "baz" } };
+		sorteddictionary.First().Key.ShouldBe(cpukey3);
+		sorteddictionary.Last().Key.ShouldBe(cpukey1);
+	}
+
+	#endregion
+
+
 
 	#region Scratch
 
