@@ -16,17 +16,19 @@ public class CPUKeyTests
 		("C0DE8daae05493bcb0f1664fb1751F00", "mixed case"),
 	};
 
-	private static readonly List<(string Data, string Info)> _invalidDataSource = new()
+	private static readonly List<(string Data, string Info)> _malformedDataSource = new()
 	{
-		("C0DE DAAE05493BCB0F1664FB175 F00",   "with spaces"),
+		// strings and arrays
+		("",                                   "empty"),
+		("00000000000000000000000000000000",   "all zeros"),
 		("C0DE8DAAE05493BCB0F1664FB1751F",     "< valid length"),
 		("C0DE8DAAE05493BCB0F1664FB1751F00FF", "> valid length"),
-		("00000000000000000000000000000000",   "all zeros"),
-		("12345678901234567890123456789012",   "all numbers"),
+
+		// strings only
 		("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|",   "all symbols"),
+		("C0DE DAAE05493BCB0F1664FB175 F00",   "with spaces"),
 		("STELIOKONTOSCANTC0DECLIFTONMSAID",   "non-hex chars"),
 		("C0DE8DAAE05493BCB0F1664FB1751F0",    "not a multiple of 2"),
-		("",                                   "empty"),
 	};
 
 	/// <remarks>
@@ -35,7 +37,7 @@ public class CPUKeyTests
 	/// </remarks>
 	/// <seealso cref="CPUKey.ValidateHammingWeight"/>
 	/// <seealso cref="CPUKey.ComputeECD"/>
-	private static readonly List<(string Data, bool ExpectedHammingWeight, bool ExpectedECD, string Info)> _exceptionDataSource = new()
+	private static readonly List<(string Data, bool ExpectedHammingWeight, bool ExpectedECD, string Info)> _invalidDataSource = new()
 	{
 		("C0DE8DAAE05493BCB0F1664FB1751F00", ExpectedHammingWeight: true,  ExpectedECD: true,  "Hamming Weight: valid, ECD: valid"),
 		("C0DE8DAAE05493BCB0F1664FB1751F10", ExpectedHammingWeight: true,  ExpectedECD: false, "Hamming Weight: valid, ECD: invalid"),
@@ -53,8 +55,8 @@ public class CPUKeyTests
 			   Type t when t == typeof(byte[]) => Convert.FromHexString(x.Data),
 			   _ => throw new NotImplementedException() }, x.Info };
 
-	public static IEnumerable<object[]> InvalidDataGenerator(Type type)
-		=> from x in _invalidDataSource
+	public static IEnumerable<object[]> MalformedDataGenerator(Type type)
+		=> from x in _malformedDataSource
 		   where type != typeof(byte[]) || IsHexString(x.Data)
 		   select new object[] { type switch {
 			   Type t when t == typeof(string) => x.Data,
@@ -62,32 +64,11 @@ public class CPUKeyTests
 			   _ => throw new NotImplementedException() }, x.Info };
 
 	public static IEnumerable<object[]> ExceptionDataGenerator(Type type)
-		=> from x in _exceptionDataSource
+		=> from x in _invalidDataSource
 		   select new object[] { type switch {
 			   Type t when t == typeof(string) => x.Data,
 			   Type t when t == typeof(byte[]) => Convert.FromHexString(x.Data),
 			   _ => throw new NotImplementedException() }, x.ExpectedHammingWeight, x.ExpectedECD, x.Info };
-
-	public static IEnumerable<object[]> MalformedDataGenerator(Type type)
-	{
-		if (type == typeof(byte[]))
-		{
-			yield return new object[] { Array.Empty<byte>(), "empty array" };
-			yield return new object[] { Enumerable.Repeat(0x0, 16).Select(i => (byte)i).ToArray(), "all zeroes" };
-			yield return new object[] { Enumerable.Repeat(0x1, 15).Select(i => (byte)i).ToArray(), "too short" };
-			yield return new object[] { Enumerable.Repeat(0x1, 17).Select(i => (byte)i).ToArray(), "too long" };
-		}
-		else if (type == typeof(string))
-		{
-			yield return new object[] { String.Empty, "empty string" };
-			yield return new object[] { new string('Z', 32), "non-hex characters" };
-			yield return new object[] { new string('0', 32), "all zeroes" };
-			yield return new object[] { new string('1', 31), "too short" };
-			yield return new object[] { new string('1', 33), "too long" };
-		}
-	}
-
-	// TODO: Distinguish between malformed (format) and invalid (content) data
 
 	#endregion
 
@@ -185,7 +166,7 @@ public class CPUKeyTests
 	[Fact, Trait("Category", "Constructor")]
 	public void Constructor_ShouldThrowOnAllZeroes()
 	{
-		Should.Throw<FormatException>(() => new CPUKey(Enumerable.Repeat<byte>(0x00, 16).ToArray()));
+		Should.Throw<FormatException>(() => new CPUKey(Enumerable.Repeat<byte>(0x0, 16).ToArray()));
 		Should.Throw<FormatException>(() => new CPUKey(Enumerable.Repeat<char>('0', 32).ToArray()));
 	}
 
@@ -233,14 +214,14 @@ public class CPUKeyTests
 	}
 
 	[Theory, Trait("Category", "Parse")]
-	[MemberData(nameof(InvalidDataGenerator), typeof(byte[]))]
+	[MemberData(nameof(MalformedDataGenerator), typeof(byte[]))]
 	public void Parse_Bytes_ShouldThrowOnInvalidInput(byte[] data, string info)
 	{
 		Should.Throw<Exception>(() => CPUKey.Parse(data)).Message.ShouldNotBeNull(info);
 	}
 
 	[Theory, Trait("Category", "Parse")]
-	[MemberData(nameof(InvalidDataGenerator), typeof(string))]
+	[MemberData(nameof(MalformedDataGenerator), typeof(string))]
 	public void Parse_String_ShouldThrowOnInvalidInput(string data, string info)
 	{
 		Should.Throw<Exception>(() => CPUKey.Parse(data)).Message.ShouldNotBeNull(info);
