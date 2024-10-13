@@ -1,5 +1,5 @@
 /*
- * CPUKey class - v3.0.1
+ * CPUKey class - v3.0.2
  * Created: 01/20/2020
  * Author:  Daniel McClintock (alias: Stelio Kontos)
  *
@@ -8,6 +8,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -86,7 +87,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	{
 		Span<byte> span = stackalloc byte[ValidByteLen];
 		using var rng = RandomNumberGenerator.Create();
-		do { rng.GetNonZeroBytes(span); } while (!ValidateHammingWeight(span));
+		do { rng.GetNonZeroBytes(span); } while (!VerifyHammingWeight(span));
 		ComputeECD(span);
 		return new CPUKey(span);
 	}
@@ -114,6 +115,13 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <exception cref="CPUKeyHammingWeightException"><paramref name="value"/> has an invalid Hamming weight.</exception>
 	/// <exception cref="CPUKeyECDException"><paramref name="value"/> failed ECD validation.</exception>
 	public static CPUKey Parse(ReadOnlySpan<char> value) => ParseInternal(SanitizeInput(value));
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static CPUKey ParseInternal(ReadOnlySpan<byte> sanitizedValue)
+	{
+		ValidateData(sanitizedValue);
+		return new CPUKey(sanitizedValue);
+	}
 
 	/// <summary>
 	/// Parses and validates the given byte <see cref="Array"/>, initializing a new CPUKey instance at <paramref name="cpukey"/>. If the
@@ -143,6 +151,19 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// </param>
 	/// <returns>true if <paramref name="value"/> represents a valid CPUKey; otherwise, false.</returns>
 	public static bool TryParse(ReadOnlySpan<char> value, [NotNullWhen(true)] out CPUKey? cpukey) => TryParseInternal(SanitizeInputSafe(value), out cpukey);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static bool TryParseInternal(ReadOnlySpan<byte> sanitizedValue, [NotNullWhen(true)] out CPUKey? cpukey)
+	{
+		cpukey = sanitizedValue switch
+		{
+			_ when sanitizedValue.IsEmpty => default, // malformed, pass uninitialized
+			_ when !ValidateDataSafe(sanitizedValue) => Empty, // invalid, pass Empty
+			_ => new CPUKey(sanitizedValue) // well-formed and valid
+		};
+
+		return cpukey?.IsValid() ?? false;
+	}
 
 	/// <summary>
 	/// Determines whether the current CPUKey instance represents a valid CPUKey.
@@ -231,24 +252,6 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 
 	#region Implementation Detail
 
-	private static CPUKey ParseInternal(ReadOnlySpan<byte> sanitizedValue)
-	{
-		ValidateData(sanitizedValue);
-		return new CPUKey(sanitizedValue);
-	}
-
-	private static bool TryParseInternal(ReadOnlySpan<byte> sanitizedValue, [NotNullWhen(true)] out CPUKey? cpukey)
-	{
-		cpukey = sanitizedValue switch
-		{
-			_ when sanitizedValue.IsEmpty => default, // malformed, pass uninitialized
-			_ when !ValidateDataSafe(sanitizedValue) => Empty, // invalid, pass Empty
-			_ => new CPUKey(sanitizedValue) // well-formed and valid
-		};
-
-		return cpukey?.IsValid() ?? false;
-	}
-
 	private static byte[] SanitizeInput(ReadOnlySpan<byte> value)
 	{
 		if (value.IsEmpty)
@@ -277,24 +280,49 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	private static byte[]? SanitizeInputSafe(ReadOnlySpan<char> value)
 		=> value.IsEmpty || value.Length != ValidCharLen || All(value, x => x == '0') || !All(value, x => IsHexCharacter(x)) ? default : Convert.FromHexString(value);
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static void ValidateData(ReadOnlySpan<byte> value)
 	{
-		if (!ValidateHammingWeight(value))
+		if (!VerifyHammingWeight(value))
 			throw new CPUKeyHammingWeightException(value.ToArray());
-		if (!ValidateECD(value))
+		if (!VerifyECD(value))
 			throw new CPUKeyECDException(value.ToArray());
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static bool ValidateDataSafe(ReadOnlySpan<byte> value)
-		=> ValidateHammingWeight(value) && ValidateECD(value);
+		=> VerifyHammingWeight(value) && VerifyECD(value);
 
 	/// <summary>
-	/// Validates that the Hamming weight (non-zero bit count, or popcount) of the given data is 0x35. The ECD mask is used to exclude the
-	/// 22 bits designated for Error Correction and Detection (ECD) in the CPUKey.
+	/// Verifies that the Hamming weight (non-zero bit count, or popcount) of the given data is 0x35.
 	/// </summary>
 	/// <param name="value">The CPUKey data bytes to validate.</param>
 	/// <returns>True if the Hamming weight is 0x35, false otherwise.</returns>
-	private static bool ValidateHammingWeight(ReadOnlySpan<byte> value)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static bool VerifyHammingWeight(ReadOnlySpan<byte> value)
+		=> ComputeHammingWeight(value) == ValidHammingWeight;
+
+	/// <summary>
+	/// Verifies the Error Correction and Detection (ECD) bits within a CPUKey by comparing them against a re-computed set.
+	/// </summary>
+	/// <param name="value">The CPUKey data bytes to validate.</param>
+	/// <returns>True if the re-computed ECD matches the original, false otherwise.</returns>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static bool VerifyECD(ReadOnlySpan<byte> value)
+	{
+		Span<byte> span = stackalloc byte[ValidByteLen];
+		value.CopyTo(span);
+		ComputeECD(span);
+		return span.SequenceEqual(value);
+	}
+
+	/// <summary>
+	/// Computes the Hamming weight (non-zero bit count, or popcount) of the given data. The ECD mask is used to exclude the
+	/// 22 bits designated for Error Correction and Detection (ECD) in the CPUKey.
+	/// </summary>
+	/// <param name="value">The CPUKey data bytes to validate.</param>
+	/// <returns>The Hamming weight of the CPUKey data.</returns>
+	private static int ComputeHammingWeight(ReadOnlySpan<byte> value)
 	{
 		// scratch space on the stack - faster than byte[] (zero allocations)
 		Span<byte> span = stackalloc byte[ValidByteLen];
@@ -309,23 +337,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		const ulong ecdMask = 0xFFFF_FFFF_FF03_0000; // (BE: 0x03FF), cpukey bits 106-127 (inclusive)
 
 		// apply mask and count set bits in one shot using hardware intrinsics (fast)
-		var hammingWeight = BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & ecdMask);
-
-		// anything other than 0x35 is invalid
-		return hammingWeight == ValidHammingWeight;
-	}
-
-	/// <summary>
-	/// Validates the Error Correction and Detection (ECD) bits within a CPUKey by comparing them against a re-computed set.
-	/// </summary>
-	/// <param name="value">The CPUKey data bytes to validate.</param>
-	/// <returns>True if the re-computed ECD matches the original, false otherwise.</returns>
-	private static bool ValidateECD(ReadOnlySpan<byte> value)
-	{
-		Span<byte> span = stackalloc byte[ValidByteLen];
-		value.CopyTo(span);
-		ComputeECD(span);
-		return span.SequenceEqual(value);
+		return BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & ecdMask);
 	}
 
 	/// <summary>
@@ -349,19 +361,19 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		uint acc1 = 0;
 		uint acc2 = 0;
 
-		for (var i = 0; i < 128; i++, acc1 >>= 1) // foreach (bit in cpukey)
+		for (var i = 0; i < 128; i++, acc1 >>= 1)
 		{
 			byte bTmp = value[i >> 3];
 			uint dwTmp = (uint)((bTmp >> (i & 7)) & 1);
 
-			if (i < 0x6A) // if (i < 106) // (hammingweight * 2)
+			if (i < 0x6A)
 			{
 				acc1 ^= dwTmp;
 				if ((acc1 & 1) > 0)
-					acc1 ^= 0x360325; // easter egg magic
+					acc1 ^= 0x360325;
 				acc2 ^= dwTmp;
 			}
-			else if (i < 0x7F) // else if (i != lastbit) // (127)
+			else if (i < 0x7F)
 			{
 				if (dwTmp != (acc1 & 1))
 					value[i >> 3] = (byte)((1 << (i & 7)) ^ (bTmp & 0xFF));
@@ -369,7 +381,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 			}
 			else if (dwTmp != acc2)
 			{
-				value[0xF] = (byte)((0x80 ^ bTmp) & 0xFF); // ((128 ^ bTmp) & 0xFF)
+				value[0xF] = (byte)((0x80 ^ bTmp) & 0xFF);
 			}
 		}
 	}
