@@ -184,11 +184,86 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <returns>An <see cref="Array"/> containing the CPUKey.</returns>
 	public byte[] ToArray() => data.ToArray();
 
+	#region IEquatable<CPUKey>
+
 	/// <summary>
-	/// Returns the <see cref="String"/> representation of the CPUKey object.
+	/// Determines whether the specified CPUKey is equal to the current CPUKey instance.
 	/// </summary>
-	/// <returns>A UTF-16 encoded hexidecimal <see cref="String"/> representing the CPUKey.</returns>
-	public override string ToString() => Convert.ToHexString(data.Span);
+	/// <inheritdoc cref="Equals(object)"/>
+	/// <param name="other">The CPUKey to compare with the current instance.</param>
+	public bool Equals([NotNullWhen(true)] CPUKey? other) => other is not null && data.Span.SequenceEqual(other.data.Span);
+
+	/// <summary>
+	/// Determines whether the specified byte array is equal to the current CPUKey instance.
+	/// </summary>
+	/// <inheritdoc cref="Equals(object)"/>
+	/// <param name="value">The byte array to compare with the current instance.</param>
+	public bool Equals(ReadOnlySpan<byte> value) => data.Span.SequenceEqual(value);
+
+	/// <summary>
+	/// Determines whether the specified string is equal to the current CPUKey instance.
+	/// </summary>
+	/// <inheritdoc cref="Equals(object)"/>
+	/// <param name="value">The string to compare with the current instance.</param>
+	public bool Equals(ReadOnlySpan<char> value) => ToString().AsSpan().Equals(value, StringComparison.OrdinalIgnoreCase);
+
+	#endregion
+
+	#region IComparable<CPUKey>
+
+	/// <summary>
+	/// Compares the current instance with another CPUKey object and returns an integer that indicates whether the current instance
+	/// precedes, follows, or occurs in the same position in the sort order as the other object.
+	/// </summary>
+	/// <remarks>
+	/// This method performs a lexographic byte-wise comparison using the underlying byte array of the CPUKey.
+	/// </remarks>
+	/// <param name="other">The CPUKey object to compare with this instance.</param>
+	/// <returns>
+	/// A value that indicates the relative order of the objects being compared. The return value has these meanings:
+	/// <br/>- Less than zero: This instance precedes <paramref name="other"/> in the sort order.
+	/// <br/>- Zero: This instance occurs in the same position in the sort order as <paramref name="other"/>.
+	/// <br/>- Greater than zero: This instance follows <paramref name="other"/> in the sort order.
+	/// </returns>
+	public int CompareTo(CPUKey? other) => other is not null ? data.Span.SequenceCompareTo(other.data.Span) : 1;
+
+	#endregion
+
+	#region Operators
+
+	public static bool operator ==(CPUKey left, CPUKey right) => left.Equals(right);
+	public static bool operator !=(CPUKey left, CPUKey right) => !left.Equals(right);
+	public static bool operator ==(CPUKey left, ReadOnlySpan<byte> right) => left.Equals(right);
+	public static bool operator !=(CPUKey left, ReadOnlySpan<byte> right) => !left.Equals(right);
+	public static bool operator ==(CPUKey left, ReadOnlySpan<char> right) => left.Equals(right);
+	public static bool operator !=(CPUKey left, ReadOnlySpan<char> right) => !left.Equals(right);
+
+	public static bool operator <(CPUKey left, CPUKey right) => left.CompareTo(right) < 0;
+	public static bool operator <=(CPUKey left, CPUKey right) => left.CompareTo(right) <= 0;
+	public static bool operator >(CPUKey left, CPUKey right) => left.CompareTo(right) > 0;
+	public static bool operator >=(CPUKey left, CPUKey right) => left.CompareTo(right) >= 0;
+
+	#endregion
+
+	#region Object Overrides
+
+	/// <summary>
+	/// Determines whether the specified object is equal to the current CPUKey instance.
+	/// </summary>
+	/// <remarks>
+	/// Two CPUKey instances are considered equal if their underlying byte arrays are sequence-equal. This method can also compare against a
+	/// byte array or a hexidecimal string that represents a CPUKey. String comparisons are performed in an ordinal and case-insensitive
+	/// manner.
+	/// </remarks>
+	/// <param name="obj">The object to compare with the current instance.</param>
+	/// <returns>true if the specified object is equal to the current instance; otherwise, false.</returns>
+	public override bool Equals([NotNullWhen(true)] object? obj) => obj switch
+	{
+		CPUKey cpukey => Equals(cpukey),
+		byte[] arr => Equals(arr),
+		string str => Equals(str),
+		_ => false
+	};
 
 	/// <summary>
 	/// Generates a hash code for the current CPUKey instance, optimized for performance and collision resistance. This implementation
@@ -211,62 +286,12 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	}
 
 	/// <summary>
-	/// Determines whether the specified object is equal to the current CPUKey instance.
+	/// Returns the <see cref="String"/> representation of the CPUKey object.
 	/// </summary>
-	/// <remarks>
-	/// Two CPUKey instances are considered equal if their underlying byte arrays are sequence-equal. This method can also compare against a
-	/// byte array or a hexidecimal string that represents a CPUKey. String comparisons are performed in an ordinal and case-insensitive
-	/// manner.
-	/// </remarks>
-	/// <param name="obj">The object to compare with the current instance.</param>
-	/// <returns>true if the specified object is equal to the current instance; otherwise, false.</returns>
-	public override bool Equals([NotNullWhen(true)] object? obj) => obj switch
-	{
-		byte[] arr => Equals(arr),
-		string str => Equals(str),
-		CPUKey cpukey => Equals(cpukey),
-		_ => false
-	};
+	/// <returns>A UTF-16 encoded hexidecimal <see cref="String"/> representing the CPUKey.</returns>
+	public override string ToString() => Convert.ToHexString(data.Span);
 
-	/// <inheritdoc cref="Equals(object)"/>
-	/// <param name="other">The CPUKey to compare with the current instance.</param>
-	public bool Equals([NotNullWhen(true)] CPUKey? other) => other is not null && data.Span.SequenceEqual(other.data.Span);
-
-	/// <inheritdoc cref="Equals(object)"/>
-	/// <param name="value">The byte array to compare with the current instance.</param>
-	public bool Equals(ReadOnlySpan<byte> value) => data.Span.SequenceEqual(value);
-
-	/// <inheritdoc cref="Equals(object)"/>
-	/// <param name="value">The string to compare with the current instance.</param>
-	public bool Equals(ReadOnlySpan<char> value) => ToString().AsSpan().Equals(value, StringComparison.OrdinalIgnoreCase);
-
-	/// <summary>
-	/// Compares the current instance with another CPUKey object and returns an integer that indicates whether the current instance
-	/// precedes, follows, or occurs in the same position in the sort order as the other object.
-	/// </summary>
-	/// <remarks>
-	/// This method performs a lexographic byte-wise comparison using the underlying byte array of the CPUKey.
-	/// </remarks>
-	/// <param name="other">The CPUKey object to compare with this instance.</param>
-	/// <returns>
-	/// A value that indicates the relative order of the objects being compared. The return value has these meanings:
-	/// <br/>- Less than zero: This instance precedes <paramref name="other"/> in the sort order.
-	/// <br/>- Zero: This instance occurs in the same position in the sort order as <paramref name="other"/>.
-	/// <br/>- Greater than zero: This instance follows <paramref name="other"/> in the sort order.
-	/// </returns>
-	public int CompareTo(CPUKey? other) => other is not null ? data.Span.SequenceCompareTo(other.data.Span) : 1;
-
-	public static bool operator ==(CPUKey left, CPUKey right) => left.Equals(right);
-	public static bool operator !=(CPUKey left, CPUKey right) => !left.Equals(right);
-	public static bool operator ==(CPUKey left, ReadOnlySpan<byte> right) => left.Equals(right);
-	public static bool operator !=(CPUKey left, ReadOnlySpan<byte> right) => !left.Equals(right);
-	public static bool operator ==(CPUKey left, ReadOnlySpan<char> right) => left.Equals(right);
-	public static bool operator !=(CPUKey left, ReadOnlySpan<char> right) => !left.Equals(right);
-
-	public static bool operator <(CPUKey left, CPUKey right) => left.CompareTo(right) < 0;
-	public static bool operator <=(CPUKey left, CPUKey right) => left.CompareTo(right) <= 0;
-	public static bool operator >(CPUKey left, CPUKey right) => left.CompareTo(right) > 0;
-	public static bool operator >=(CPUKey left, CPUKey right) => left.CompareTo(right) >= 0;
+	#endregion
 
 	#region Implementation Detail
 
