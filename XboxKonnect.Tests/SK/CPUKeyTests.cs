@@ -730,8 +730,6 @@ public class CPUKeyTests
 
 	#endregion
 
-
-
 	#region Scratch
 
 	protected static CPUKey GenValidCPUKey
@@ -743,6 +741,23 @@ public class CPUKeyTests
 			while (!cpukey.ToString()[..2].Equals("C0") || !cpukey.ToString()[^3..].Equals("F00"));
 			return cpukey;
 		}
+	}
+
+	#endregion
+}
+
+public class CPUKeyExtensionsTests
+{
+
+	#region Regression Tests
+
+	[Fact, Trait("Category", "Extension Methods")]
+	public void GetDigest_ShouldReturnValidDigest()
+	{
+		static byte[] GetDigestOld(CPUKey cpukey) => System.Security.Cryptography.SHA1.Create().ComputeHash(cpukey.ToArray());
+		static byte[] GetDigestNew(CPUKey cpukey) => cpukey.GetDigest();
+		var cpukey = CPUKey.CreateRandom();
+		GetDigestOld(cpukey).ShouldBe(GetDigestNew(cpukey));
 	}
 
 	#endregion

@@ -32,7 +32,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	private static readonly int ValidCharLen = 0x20;
 	private static readonly int ValidHammingWeight = 0x35;
 
-	private readonly Memory<byte> data = Memory<byte>.Empty;
+	private readonly ReadOnlyMemory<byte> data = ReadOnlyMemory<byte>.Empty;
 
 	/// <summary>
 	/// Returns an empty CPUKey object.
@@ -53,8 +53,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	{
 		if (other is null)
 			throw new ArgumentNullException(nameof(other));
-		data = new byte[ValidByteLen];
-		other.data.CopyTo(data);
+		data = new ReadOnlyMemory<byte>(other.data.ToArray());
 	}
 
 	/// <summary>
@@ -79,7 +78,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <exception cref="CPUKeyECDException"><paramref name="value"/> failed ECD validation.</exception>
 	public CPUKey(ReadOnlySpan<char> value) : this(SanitizeInput(value)) => ValidateData(data.Span);
 
-	private CPUKey(byte[] value) => data = new Memory<byte>(value);
+	private CPUKey(byte[] value) => data = new ReadOnlyMemory<byte>(value);
 
 	/// <summary>
 	/// Generates a cryptographically random CPUKey instance with valid Hamming weight and ECD.
@@ -88,8 +87,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	public static CPUKey CreateRandom()
 	{
 		Span<byte> span = stackalloc byte[ValidByteLen];
-		using var rng = RandomNumberGenerator.Create();
-		do { rng.GetNonZeroBytes(span); } while (!VerifyHammingWeight(span));
+		do { RandomNumberGenerator.Fill(span); } while (!VerifyHammingWeight(span));
 		ComputeECD(span);
 		return new CPUKey(span);
 	}
@@ -170,7 +168,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// Determines whether the current CPUKey instance represents a valid CPUKey.
 	/// </summary>
 	/// <returns>true if the current instance is not equal to <see cref="Empty"/>; otherwise, false.</returns>
-	public bool IsValid() => !Equals(Empty);
+	public bool IsValid() => !data.IsEmpty;
 
 	/// <summary>
 	/// Returns a <see cref="ReadOnlySpan{T}"/> from the current CPUKey instance.
@@ -205,7 +203,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// </summary>
 	/// <inheritdoc cref="Equals(object)"/>
 	/// <param name="value">The string to compare with the current instance.</param>
-	public bool Equals(ReadOnlySpan<char> value) => ToString().AsSpan().Equals(value, StringComparison.OrdinalIgnoreCase);
+	public bool Equals(ReadOnlySpan<char> value) => ConvertToHexString().AsSpan().Equals(value, StringComparison.OrdinalIgnoreCase);
 
 	#endregion
 
@@ -289,7 +287,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// Returns the <see cref="String"/> representation of the CPUKey object.
 	/// </summary>
 	/// <returns>A UTF-16 encoded hexidecimal <see cref="String"/> representing the CPUKey.</returns>
-	public override string ToString() => Convert.ToHexString(data.Span);
+	public override string ToString() => ConvertToHexString();
 
 	#endregion
 
@@ -428,9 +426,43 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		}
 	}
 
+	/// <summary>
+	/// Converts the CPUKey's underlying data consisting of 8-bit unsigned integers to its equivalent string representation that is
+	/// encoded with uppercase hex characters.
+	/// </summary>
+	/// <remarks>
+	/// This method is a high-performance, zero-allocation custom implementation of <see cref="Convert.ToHexString(ReadOnlySpan{byte})"/>,
+	/// designed to avoid redundant bounds checking and error handling that was already done during construction. A CPUKey instance favors
+	/// deferred string conversion over caching, but comparisons/equality checks performed against another string are likely to be called in
+	/// a tight loop or performance-critical path, hence the custom implementation.
+	/// </remarks>
+	/// <returns>A string representing the CPUKey in uppercase hexadecimal format.</returns>
+	private string ConvertToHexString()
+	{
+		if (data.IsEmpty)
+			return String.Empty;
+
+		Span<char> span = stackalloc char[ValidCharLen];
+		for (int i = 0; i < data.Span.Length; i++)
+		{
+			byte b = data.Span[i];
+			span[i * 2] = GetHexValue(b >> 4); // high nibble
+			span[i * 2 + 1] = GetHexValue(b & 0xF); // low nibble
+		}
+
+		return new String(span);
+	}
+
+	/// <summary>
+	/// Converts a nibble to its corresponding uppercase hex character.
+	/// </summary>
+	/// <param name="nibble">A value from 0-15 representing the 4-bit nibble.</param>
+	/// <returns>The uppercase hex character ('0'-'9', 'A'-'F').</returns>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static bool IsHexCharacter(char value)
-		=> value is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
+	private static char GetHexValue(int nibble) => (char)(nibble < 10 ? nibble + '0' : nibble - 10 + 'A');
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static bool IsHexCharacter(char value) => value is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
 
 	private static bool All<T>(ReadOnlySpan<T> span, Predicate<T> predicate)
 	{
