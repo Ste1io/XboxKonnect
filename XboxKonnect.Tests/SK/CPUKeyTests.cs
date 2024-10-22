@@ -6,9 +6,6 @@ public class CPUKeyTests
 {
 	#region Test Data
 
-	private static bool IsHexString(string value) => value.Length % 2 == 0
-												  && value.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F');
-
 	private static readonly List<(string Data, string Info)> _validDataSource = new()
 	{
 		("C0DE8DAAE05493BCB0F1664FB1751F00", "uppercase"),
@@ -66,6 +63,13 @@ public class CPUKeyTests
 			   Type t when t == typeof(string) => x.Data,
 			   Type t when t == typeof(byte[]) => Convert.FromHexString(x.Data),
 			   _ => throw new NotImplementedException() }, x.ExpectedHammingWeight, x.ExpectedECD, x.Info };
+
+	#endregion
+
+	#region Test Helpers
+
+	private static bool IsHexString(string value) => value.Length % 2 == 0
+												  && value.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F');
 
 	private static Type GetCPUKeyExceptionType(bool expectedHammingWeight, bool expectedECD) => (expectedHammingWeight, expectedECD) switch
 	{

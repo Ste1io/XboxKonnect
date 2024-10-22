@@ -13,6 +13,8 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
+[assembly: InternalsVisibleTo("XboxKonnect.Tests")]
+
 namespace SK;
 
 /// <summary>
@@ -295,7 +297,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 
 	#region Implementation Detail
 
-	private static byte[] SanitizeInput(ReadOnlySpan<byte> value)
+	internal static byte[] SanitizeInput(ReadOnlySpan<byte> value)
 	{
 		if (value.IsEmpty)
 			throw new ArgumentException("Value cannot be empty.", nameof(value));
@@ -306,10 +308,10 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		return value.ToArray();
 	}
 
-	private static byte[]? SanitizeInputSafe(ReadOnlySpan<byte> value)
+	internal static byte[]? SanitizeInputSafe(ReadOnlySpan<byte> value)
 		=> value.IsEmpty || value.Length != ValidByteLen || All(value, x => x == 0x00) ? default : value.ToArray();
 
-	private static byte[] SanitizeInput(ReadOnlySpan<char> value)
+	internal static byte[] SanitizeInput(ReadOnlySpan<char> value)
 	{
 		if (value.IsEmpty)
 			throw new ArgumentException("Value cannot be empty.", nameof(value));
@@ -320,11 +322,11 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		return Convert.FromHexString(value);
 	}
 
-	private static byte[]? SanitizeInputSafe(ReadOnlySpan<char> value)
+	internal static byte[]? SanitizeInputSafe(ReadOnlySpan<char> value)
 		=> value.IsEmpty || value.Length != ValidCharLen || All(value, x => x == '0') || !All(value, x => IsHexCharacter(x)) ? default : Convert.FromHexString(value);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static void ValidateData(ReadOnlySpan<byte> value)
+	internal static void ValidateData(ReadOnlySpan<byte> value)
 	{
 		if (!VerifyHammingWeight(value))
 			throw new CPUKeyHammingWeightException(value.ToArray());
@@ -333,7 +335,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static bool ValidateDataSafe(ReadOnlySpan<byte> value)
+	internal static bool ValidateDataSafe(ReadOnlySpan<byte> value)
 		=> VerifyHammingWeight(value) && VerifyECD(value);
 
 	/// <summary>
@@ -342,7 +344,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <param name="value">The CPUKey data bytes to validate.</param>
 	/// <returns>True if the Hamming weight is 0x35, false otherwise.</returns>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static bool VerifyHammingWeight(ReadOnlySpan<byte> value)
+	internal static bool VerifyHammingWeight(ReadOnlySpan<byte> value)
 		=> ComputeHammingWeight(value) == ValidHammingWeight;
 
 	/// <summary>
@@ -350,7 +352,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// </summary>
 	/// <param name="value">The CPUKey data bytes to validate.</param>
 	/// <returns>True if the re-computed ECD matches the original, false otherwise.</returns>
-	private static bool VerifyECD(ReadOnlySpan<byte> value)
+	internal static bool VerifyECD(ReadOnlySpan<byte> value)
 	{
 		Span<byte> span = stackalloc byte[ValidByteLen];
 		value.CopyTo(span);
@@ -364,7 +366,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// </summary>
 	/// <param name="value">The CPUKey data bytes to validate.</param>
 	/// <returns>The Hamming weight of the CPUKey data.</returns>
-	private static int ComputeHammingWeight(ReadOnlySpan<byte> value)
+	internal static int ComputeHammingWeight(ReadOnlySpan<byte> value)
 	{
 		// scratch space on the stack - faster than byte[] (zero allocations)
 		Span<byte> span = stackalloc byte[ValidByteLen];
@@ -398,7 +400,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// Microsoft's claim: the ECD calculation, which is keyed against a value of 0x360325, indeed results in an 0x360 3-two-5% error rate.
 	/// </remarks>
 	/// <param name="value">The CPUKey data bytes for which to recalculate the ECD bits. The data is modified in-place.</param>
-	private static void ComputeECD(Span<byte> value)
+	internal static void ComputeECD(Span<byte> value)
 	{
 		uint acc1 = 0;
 		uint acc2 = 0;
