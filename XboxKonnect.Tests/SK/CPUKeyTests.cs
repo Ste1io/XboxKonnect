@@ -18,7 +18,7 @@ public class CPUKeyTests
 
 	private static readonly List<(string Data, string Info)> _malformedDataSource = new()
 	{
-		// strings and arrays
+		// strings and byte arrays
 		("",                                   "empty"),
 		("00000000000000000000000000000000",   "all zeros"),
 		("C0DE8DAAE05493BCB0F1664FB1751F",     "< valid length"),
@@ -60,12 +60,19 @@ public class CPUKeyTests
 			   Type t when t == typeof(byte[]) => Convert.FromHexString(x.Data),
 			   _ => throw new NotImplementedException() }, x.Info };
 
-	public static IEnumerable<object[]> ExceptionDataGenerator(Type type)
+	public static IEnumerable<object[]> InvalidDataGenerator(Type type)
 		=> from x in _invalidDataSource
 		   select new object[] { type switch {
 			   Type t when t == typeof(string) => x.Data,
 			   Type t when t == typeof(byte[]) => Convert.FromHexString(x.Data),
 			   _ => throw new NotImplementedException() }, x.ExpectedHammingWeight, x.ExpectedECD, x.Info };
+
+	private static Type GetCPUKeyExceptionType(bool expectedHammingWeight, bool expectedECD) => (expectedHammingWeight, expectedECD) switch
+	{
+		(false, _) => typeof(CPUKeyHammingWeightException),
+		(_, false) => typeof(CPUKeyECDException),
+		_ => typeof(CPUKeyException)
+	};
 
 	#endregion
 
@@ -268,7 +275,7 @@ public class CPUKeyTests
 	}
 
 	[Theory, Trait("Category", "TryParse")]
-	[MemberData(nameof(ExceptionDataGenerator), typeof(byte[]))]
+	[MemberData(nameof(InvalidDataGenerator), typeof(byte[]))]
 	public void TryParse_Bytes_ShouldReturnFalseAndEmptyCPUKeyOnInvalidInput(byte[] data, bool expectedHammingWeight, bool expectedECD, string info)
 	{
 		CPUKey? cpukey = default;
@@ -289,7 +296,7 @@ public class CPUKeyTests
 	}
 
 	[Theory, Trait("Category", "TryParse")]
-	[MemberData(nameof(ExceptionDataGenerator), typeof(string))]
+	[MemberData(nameof(InvalidDataGenerator), typeof(string))]
 	public void TryParse_String_ShouldReturnFalseAndEmptyCPUKeyOnInvalidInput(string data, bool expectedHammingWeight, bool expectedECD, string info)
 	{
 		CPUKey? cpukey = default;
@@ -314,20 +321,20 @@ public class CPUKeyTests
 	#region Validation Tests
 
 	[Fact, Trait("Category", "Validation")]
-	public void IsValid_ShouldReturnTrueForValidCPUKey()
+	public void IsValid_WithValidCPUKey_ShouldReturnTrue()
 	{
 		new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00").IsValid().ShouldBeTrue();
 	}
 
 	[Fact, Trait("Category", "Validation")]
-	public void IsValid_ShouldReturnFalseForEmptyCPUKey()
+	public void IsValid_WithEmptyCPUKey_ShouldReturnFalse()
 	{
 		CPUKey.Empty.IsValid().ShouldBeFalse();
 		new CPUKey().IsValid().ShouldBeFalse();
 	}
 
 	[Theory, Trait("Category", "Validation")]
-	[MemberData(nameof(ExceptionDataGenerator), typeof(byte[]))]
+	[MemberData(nameof(InvalidDataGenerator), typeof(byte[]))]
 	public void InvalidByteArrays_ShouldThrowCorrectExceptionType(byte[] data, bool expectedHammingWeight, bool expectedECD, string info)
 	{
 		if (!expectedHammingWeight || !expectedECD)
@@ -343,7 +350,7 @@ public class CPUKeyTests
 	}
 
 	[Theory, Trait("Category", "Validation")]
-	[MemberData(nameof(ExceptionDataGenerator), typeof(string))]
+	[MemberData(nameof(InvalidDataGenerator), typeof(string))]
 	public void InvalidStrings_ShouldThrowCorrectExceptionType(string data, bool expectedHammingWeight, bool expectedECD, string info)
 	{
 		if (!expectedHammingWeight || !expectedECD)
@@ -358,16 +365,77 @@ public class CPUKeyTests
 		}
 	}
 
-	private static Type GetCPUKeyExceptionType(bool expectedHammingWeight, bool expectedECD) => (expectedHammingWeight, expectedECD) switch
+	#endregion
+
+	#region Object Override Tests
+
+	// Object.Equals:
+	//   CPUKey overrides Object.Equals to allow for equality comparisons.
+
+	[Fact, Trait("Category", "Object")]
+	public void Equals_WithIdenticalCPUKeyObject_ShouldReturnTrue()
 	{
-		(false, _) => typeof(CPUKeyHammingWeightException),
-		(_, false) => typeof(CPUKeyECDException),
-		_ => typeof(CPUKeyException)
-	};
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00") as object;
+		cpukey1.ShouldBe(cpukey2);
+		cpukey1.Equals(cpukey2).ShouldBeTrue();
+	}
+
+	[Fact, Trait("Category", "Object")]
+	public void Equals_WithDifferentCPUKeyObject_ShouldReturnFalse()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0FE2270D42B8FABBD5D4B0D402FCF00") as object;
+		cpukey1.ShouldNotBe(cpukey2);
+		cpukey1.Equals(cpukey2).ShouldBeFalse();
+	}
+
+	// Object.GetHashCode:
+	//   CPUKey overrides Object.GetHashCode to allow for hashing and equality comparisons.
+
+	[Fact, Trait("Category", "Object")]
+	public void GetHashCode_WithIdenticalCPUKey_ShouldReturnSameHashCode()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		cpukey1.ShouldBe(cpukey2);
+		cpukey1.GetHashCode().ShouldBe(cpukey2.GetHashCode());
+	}
+
+	[Fact, Trait("Category", "Object")]
+	public void GetHashCode_WithDifferentCPUKey_ShouldReturnDifferentHashCode()
+	{
+		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		var cpukey2 = new CPUKey("C0FE2270D42B8FABBD5D4B0D402FCF00");
+		cpukey1.ShouldNotBe(cpukey2);
+		cpukey1.GetHashCode().ShouldNotBe(cpukey2.GetHashCode());
+	}
+
+	// Object.ToString:
+	//   CPUKey overrides Object.ToString to allow for hex string representations.
+
+	[Fact, Trait("Category", "Object")]
+	public void ToString_WithValidCPUKey_ShouldReturnUpperCaseHexString()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		cpukey.IsValid().ShouldBeTrue();
+		cpukey.ToString().ShouldBe("C0DE8DAAE05493BCB0F1664FB1751F00");
+	}
+
+	[Fact, Trait("Category", "Object")]
+	public void ToString_WithEmptyCPUKey_ShouldReturnEmptyString()
+	{
+		var cpukey = CPUKey.Empty;
+		cpukey.IsValid().ShouldBeFalse();
+		cpukey.ToString().ShouldBeEmpty();
+	}
 
 	#endregion
 
-	#region Equality & Comparison Tests
+	#region Equality Tests
+
+	// IEquatable<CPUKey>:
+	//   CPUKey implements IEquatable<CPUKey> to allow for equality comparisons.
 
 	[Fact, Trait("Category", "Equality")]
 	public void Equals_WithNullObject_ShouldReturnFalse()
@@ -465,6 +533,13 @@ public class CPUKeyTests
 		cpukey.Equals(new object[] { }).ShouldBeFalse();
 	}
 
+	#endregion
+
+	#region Comparison Tests
+
+	// IComparable<CPUKey>:
+	//   CPUKey implements IComparable<CPUKey> to allow for sorting and comparison operations.
+
 	[Fact, Trait("Category", "IComparable")]
 	public void CompareTo_WithNull_ShouldReturnPositive()
 	{
@@ -508,7 +583,7 @@ public class CPUKeyTests
 	#region Operators Tests
 
 	[Fact, Trait("Category", "Operators")]
-	public void EqualityOperator_WithEqualCPUKeys_ShouldReturnTrue()
+	public void EqualityOperator_WithIdenticalCPUKey_ShouldReturnTrue()
 	{
 		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
 		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
@@ -516,7 +591,7 @@ public class CPUKeyTests
 	}
 
 	[Fact, Trait("Category", "Operators")]
-	public void InequalityOperator_WithDifferentCPUKeys_ShouldReturnTrue()
+	public void InequalityOperator_WithDifferentCPUKey_ShouldReturnTrue()
 	{
 		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
 		var cpukey2 = new CPUKey("C0B33D79A74BE3832B0E6172AC491F00");
@@ -524,7 +599,7 @@ public class CPUKeyTests
 	}
 
 	[Fact, Trait("Category", "Operators")]
-	public void EqualityOperator_WithEqualByteArray_ShouldReturnTrue()
+	public void EqualityOperator_WithIdenticalByteArray_ShouldReturnTrue()
 	{
 		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
 		var array = new byte[] { 0xC0, 0xDE, 0x8D, 0xAA, 0xE0, 0x54, 0x93, 0xBC, 0xB0, 0xF1, 0x66, 0x4F, 0xB1, 0x75, 0x1F, 0x00 };
@@ -540,7 +615,7 @@ public class CPUKeyTests
 	}
 
 	[Fact, Trait("Category", "Operators")]
-	public void EqualityOperator_WithEqualString_ShouldReturnTrue()
+	public void EqualityOperator_WithIdenticalString_ShouldReturnTrue()
 	{
 		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
 		var str = "C0DE8DAAE05493BCB0F1664FB1751F00";
@@ -594,24 +669,6 @@ public class CPUKeyTests
 	#endregion
 
 	#region Collection Tests
-
-	[Fact, Trait("Category", "Collections")]
-	public void GetHashCode_SameCPUKeyInstances_ShouldReturnSameHashCode()
-	{
-		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
-		var cpukey2 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
-		cpukey1.ShouldBe(cpukey2);
-		cpukey1.GetHashCode().ShouldBe(cpukey2.GetHashCode());
-	}
-
-	[Fact, Trait("Category", "Collections")]
-	public void GetHashCode_DifferentCPUKeyInstances_ShouldReturnDifferentHashCode()
-	{
-		var cpukey1 = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
-		var cpukey2 = new CPUKey("C0FE2270D42B8FABBD5D4B0D402FCF00");
-		cpukey1.ShouldNotBe(cpukey2);
-		cpukey1.GetHashCode().ShouldNotBe(cpukey2.GetHashCode());
-	}
 
 	// HashSet<CPUKey>:
 	//   Because CPUKey overriddes GetHashCode and Equals, we can use it in a HashSet.
@@ -748,7 +805,6 @@ public class CPUKeyTests
 
 public class CPUKeyExtensionsTests
 {
-
 	#region Regression Tests
 
 	[Fact, Trait("Category", "Extension Methods")]

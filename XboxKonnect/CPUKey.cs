@@ -1,5 +1,5 @@
 /*
- * CPUKey class - v3.1.0
+ * CPUKey class - v3.2.0
  * Created: 01/20/2020
  * Author:  Daniel McClintock (alias: Stelio Kontos)
  *
@@ -70,9 +70,9 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <summary>
 	/// Initializes a new CPUKey instance from a <see cref="String"/>.
 	/// </summary>
-	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a hexidecimal string to parse and validate.</param>
+	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of a hexadecimal string to parse and validate.</param>
 	/// <exception cref="ArgumentException"><paramref name="value"/> is empty.</exception>
-	/// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is not 32 hexidecimal characters long.</exception>
+	/// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is not 32 hexadecimal characters long.</exception>
 	/// <exception cref="FormatException"><paramref name="value"/> is all zeroes or contains a non-hex character.</exception>
 	/// <exception cref="CPUKeyHammingWeightException"><paramref name="value"/> has an invalid Hamming weight.</exception>
 	/// <exception cref="CPUKeyECDException"><paramref name="value"/> failed ECD validation.</exception>
@@ -105,12 +105,12 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	public static CPUKey Parse(ReadOnlySpan<byte> value) => ParseInternal(SanitizeInput(value));
 
 	/// <summary>
-	/// Creates a new CPUKey instance from the given hexidecimal <see cref="String"/>.
+	/// Creates a new CPUKey instance from the given hexadecimal <see cref="String"/>.
 	/// </summary>
-	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of the hexidecimal string to parse and validate.</param>
+	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of the hexadecimal string to parse and validate.</param>
 	/// <returns>A new CPUKey instance if parsing and validation succeed.</returns>
 	/// <exception cref="ArgumentException"><paramref name="value"/> is empty.</exception>
-	/// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is not 32 hexidecimal characters long.</exception>
+	/// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is not 32 hexadecimal characters long.</exception>
 	/// <exception cref="FormatException"><paramref name="value"/> is all zeroes or contains a non-hex character.</exception>
 	/// <exception cref="CPUKeyHammingWeightException"><paramref name="value"/> has an invalid Hamming weight.</exception>
 	/// <exception cref="CPUKeyECDException"><paramref name="value"/> failed ECD validation.</exception>
@@ -131,23 +131,25 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of the byte sequence to parse and validate.</param>
 	/// <param name="cpukey">
 	/// When this method returns, contains the CPUKey value equivalent of the byte sequence contained in <paramref name="value"/> if the
-	/// conversion succeeded. If the conversion fails sanity checks, <paramref name="cpukey"/> is set to null to signify that the input was
-	/// malformed. If the conversion fails due to validation errors, <paramref name="cpukey"/> is set to <see cref="Empty"/> to
-	/// signifiy a well-formed but invalid CPUKey.
+	/// conversion succeeded. The possible values are:
+	/// <br/>- Uninitialized: If the input is malformed.
+	/// <br/>- <see cref="Empty"/>: If the input is well-formed but invalid.
+	/// <br/>- A valid CPUKey instance: If the conversion succeeded.
 	/// </param>
 	/// <returns>true if <paramref name="value"/> represents a valid CPUKey; otherwise, false.</returns>
 	public static bool TryParse(ReadOnlySpan<byte> value, [NotNullWhen(true)] out CPUKey? cpukey) => TryParseInternal(SanitizeInputSafe(value), out cpukey);
 
 	/// <summary>
-	/// Parses and validates the given hexidecimal <see cref="String"/>, initializing a new CPUKey instance at <paramref name="cpukey"/> if
+	/// Parses and validates the given hexadecimal <see cref="String"/>, initializing a new CPUKey instance at <paramref name="cpukey"/> if
 	/// successful; otherwise, setting it to null or <see cref="Empty"/> to signify a malformed or invalid CPUKey.
 	/// </summary>
-	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of the hexidecimal string to parse and validate.</param>
+	/// <param name="value">The <see cref="ReadOnlySpan{T}"/> representation of the hexadecimal string to parse and validate.</param>
 	/// <param name="cpukey">
-	/// When this method returns, contains the CPUKey value equivalent of the hexidecimal string contained in <paramref name="value"/> if
-	/// the conversion succeeded. If the conversion fails sanity checks, <paramref name="cpukey"/> is set to null to signify that the input
-	/// was malformed. If the conversion fails due to validation errors, <paramref name="cpukey"/> is set to <see cref="Empty"/> to
-	/// signifiy a well-formed but invalid CPUKey.
+	/// When this method returns, contains the CPUKey value equivalent of the hexadecimal string contained in <paramref name="value"/> if
+	/// the conversion succeeded. The possible values are:
+	/// <br/>- Uninitialized: If the input is malformed.
+	/// <br/>- <see cref="Empty"/>: If the input is well-formed but invalid.
+	/// <br/>- A valid CPUKey instance: If the conversion succeeded.
 	/// </param>
 	/// <returns>true if <paramref name="value"/> represents a valid CPUKey; otherwise, false.</returns>
 	public static bool TryParse(ReadOnlySpan<char> value, [NotNullWhen(true)] out CPUKey? cpukey) => TryParseInternal(SanitizeInputSafe(value), out cpukey);
@@ -181,6 +183,54 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// </summary>
 	/// <returns>An <see cref="Array"/> containing the CPUKey.</returns>
 	public byte[] ToArray() => data.ToArray();
+
+	#region Object Overrides
+
+	/// <summary>
+	/// Determines whether the specified object is equal to the current CPUKey instance.
+	/// </summary>
+	/// <remarks>
+	/// Two CPUKey instances are considered equal if their underlying byte arrays are sequence-equal. This method can also compare against a
+	/// byte array or a hexadecimal string that represents a CPUKey. String comparisons are performed in an ordinal and case-insensitive
+	/// manner.
+	/// </remarks>
+	/// <param name="obj">The object to compare with the current instance.</param>
+	/// <returns>true if the specified object is equal to the current instance; otherwise, false.</returns>
+	public override bool Equals([NotNullWhen(true)] object? obj) => obj switch
+	{
+		CPUKey cpukey => Equals(cpukey),
+		byte[] arr => Equals(arr),
+		string str => Equals(str),
+		_ => false
+	};
+
+	/// <summary>
+	/// Generates a hash code for the current CPUKey instance, optimized for performance and collision resistance. This implementation
+	/// treats the underlying 16-byte data as two 64-bit integers, applies XOR folding to combine them, and mixes the result using a large
+	/// prime multiplier to ensure good hash distribution.
+	/// </summary>
+	/// <remarks>
+	/// The method leverages <see cref="MemoryMarshal"/> to perform memory-efficient reads without allocations. XOR folding helps capture
+	/// small differences between CPUKeys, while the prime multiplier spreads out hash values to minimize collisions in hash-based
+	/// collections. This hash code is suitable for use in high-performance collections such as <see cref="HashSet{T}"/> and <see
+	/// cref="Dictionary{TKey, TValue}"/>.
+	/// </remarks>
+	/// <returns>A 32-bit integer hash code representing the CPUKey.</returns>
+	public override int GetHashCode()
+	{
+		var parts = MemoryMarshal.Cast<byte, ulong>(data.Span); // reinterpret as ulongs
+		var hash = parts[0] ^ parts[1]; // xor-fold
+		hash *= 0x9E3779B185EBCA87UL; // golden ratio
+		return (int)(hash ^ (hash >> 32)); // mix bits and truncate
+	}
+
+	/// <summary>
+	/// Returns the <see cref="String"/> representation of the CPUKey object.
+	/// </summary>
+	/// <returns>A UTF-16 encoded hexadecimal <see cref="String"/> representing the CPUKey.</returns>
+	public override string ToString() => ConvertToHexString();
+
+	#endregion
 
 	#region IEquatable<CPUKey>
 
@@ -243,54 +293,6 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 
 	#endregion
 
-	#region Object Overrides
-
-	/// <summary>
-	/// Determines whether the specified object is equal to the current CPUKey instance.
-	/// </summary>
-	/// <remarks>
-	/// Two CPUKey instances are considered equal if their underlying byte arrays are sequence-equal. This method can also compare against a
-	/// byte array or a hexidecimal string that represents a CPUKey. String comparisons are performed in an ordinal and case-insensitive
-	/// manner.
-	/// </remarks>
-	/// <param name="obj">The object to compare with the current instance.</param>
-	/// <returns>true if the specified object is equal to the current instance; otherwise, false.</returns>
-	public override bool Equals([NotNullWhen(true)] object? obj) => obj switch
-	{
-		CPUKey cpukey => Equals(cpukey),
-		byte[] arr => Equals(arr),
-		string str => Equals(str),
-		_ => false
-	};
-
-	/// <summary>
-	/// Generates a hash code for the current CPUKey instance, optimized for performance and collision resistance. This implementation
-	/// treats the underlying 16-byte data as two 64-bit integers, applies XOR folding to combine them, and mixes the result using a large
-	/// prime multiplier to ensure good hash distribution.
-	/// </summary>
-	/// <remarks>
-	/// The method leverages <see cref="MemoryMarshal"/> to perform memory-efficient reads without allocations. XOR folding helps capture
-	/// small differences between CPUKeys, while the prime multiplier spreads out hash values to minimize collisions in hash-based
-	/// collections. This hash code is suitable for use in high-performance collections such as <see cref="HashSet{T}"/> and <see
-	/// cref="Dictionary{TKey, TValue}"/>.
-	/// </remarks>
-	/// <returns>A 32-bit integer hash code representing the CPUKey.</returns>
-	public override int GetHashCode()
-	{
-		var parts = MemoryMarshal.Cast<byte, ulong>(data.Span); // reinterpret as ulongs
-		var hash = parts[0] ^ parts[1]; // xor-fold
-		hash *= 0x9E3779B185EBCA87UL; // golden ratio
-		return (int)(hash ^ (hash >> 32)); // mix bits and truncate
-	}
-
-	/// <summary>
-	/// Returns the <see cref="String"/> representation of the CPUKey object.
-	/// </summary>
-	/// <returns>A UTF-16 encoded hexidecimal <see cref="String"/> representing the CPUKey.</returns>
-	public override string ToString() => ConvertToHexString();
-
-	#endregion
-
 	#region Implementation Detail
 
 	private static byte[] SanitizeInput(ReadOnlySpan<byte> value)
@@ -312,9 +314,9 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		if (value.IsEmpty)
 			throw new ArgumentException("Value cannot be empty.", nameof(value));
 		if (value.Length != ValidCharLen)
-			throw new ArgumentOutOfRangeException(nameof(value), value.ToString(), $"Value must be {ValidCharLen} hexidecimal characters long.");
+			throw new ArgumentOutOfRangeException(nameof(value), value.ToString(), $"Value must be {ValidCharLen} hexadecimal characters long.");
 		if (All(value, x => x == '0') || !All(value, x => IsHexCharacter(x)))
-			throw new FormatException("Value cannot be all zeroes and must only contain hexidecimal digits.");
+			throw new FormatException("Value cannot be all zeroes and must only contain hexadecimal digits.");
 		return Convert.FromHexString(value);
 	}
 
