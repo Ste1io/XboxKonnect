@@ -78,6 +78,57 @@ public class CPUKeyTests
 		_ => typeof(CPUKeyException)
 	};
 
+	private static void FlipBit(Span<byte> span, int bitIndex)
+	{
+		int byteIndex = bitIndex >> 3; // bitIndex / 8
+		int bitInByte = bitIndex & 7;  // bitIndex % 8
+		span[byteIndex] ^= (byte)(1 << bitInByte);
+	}
+
+	private static void InvalidateHammingWeight(Span<byte> span)
+	{
+		// Flip a bit in the non-ECD portion (bits 0 to 105, inclusive)
+		for (int i = 0; i <= 105; i++)
+		{
+			FlipBit(span, i);
+
+			if (!CPUKey.VerifyHammingWeight(span))
+			{
+				// Recompute the ECD with the new invalid Hamming weight
+				CPUKey.ComputeECD(span);
+				return;
+			}
+			else
+			{
+				// If Hamming weight didn't change, flip the bit back and continue
+				FlipBit(span, i);
+			}
+		}
+
+		throw new InvalidOperationException("Unable to invalidate Hamming weight.");
+	}
+
+	private static void InvalidateECD(Span<byte> span)
+	{
+		// Flip a bit in the ECD portion (bits 106 to 127, inclusive)
+		for (int i = 106; i <= 127; i++)
+		{
+			FlipBit(span, i);
+
+			if (!CPUKey.VerifyECD(span))
+			{
+				return;
+			}
+			else
+			{
+				// If ECD is still valid, flip the bit back and continue
+				FlipBit(span, i);
+			}
+		}
+
+		throw new InvalidOperationException("Unable to invalidate ECD.");
+	}
+
 	#endregion
 
 	#region Creation Tests
@@ -323,6 +374,26 @@ public class CPUKeyTests
 	#endregion
 
 	#region Validation Tests
+
+	[Fact, Trait("Category", "Validation")]
+	public void InvalidateHammingWeight_ShouldInvalidateHammingWeight()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		cpukey.IsValid().ShouldBeTrue();
+		var data = cpukey.ToArray();
+		InvalidateHammingWeight(data);
+		Should.Throw<CPUKeyException>(() => new CPUKey(data)).ShouldBeOfType<CPUKeyHammingWeightException>();
+	}
+
+	[Fact, Trait("Category", "Validation")]
+	public void InvalidateECD_ShouldInvalidateECD()
+	{
+		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
+		cpukey.IsValid().ShouldBeTrue();
+		var data = cpukey.ToArray();
+		InvalidateECD(data);
+		Should.Throw<CPUKeyException>(() => new CPUKey(data)).ShouldBeOfType<CPUKeyECDException>();
+	}
 
 	[Fact, Trait("Category", "Validation")]
 	public void IsValid_WithValidCPUKey_ShouldReturnTrue()
