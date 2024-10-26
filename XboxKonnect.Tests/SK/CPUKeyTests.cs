@@ -29,17 +29,17 @@ public class CPUKeyTests
 	};
 
 	/// <remarks>
-	/// The ECD is invalidated by flipping one of the 22 bits designated for Error Correction and Detection within the CPUKey string.
-	/// An invalid Hamming Weight is created by flipping one of the remaining 106 bits to ensure a popcount other than 53.
+	/// The Hamming Weight is invalidated by flipping one of the first 106 bits, ensuring a popcount other than 53.
+	/// The ECD is invalidated by flipping one of the last 22 bits designated for Error Correction and Detection.
 	/// </remarks>
 	/// <seealso cref="CPUKey.ValidateHammingWeight"/>
 	/// <seealso cref="CPUKey.ComputeECD"/>
 	private static readonly List<(string Data, bool ExpectedHammingWeight, bool ExpectedECD, string Info)> _invalidDataSource = new()
 	{
-		("C0DE8DAAE05493BCB0F1664FB1751F00", ExpectedHammingWeight: true,  ExpectedECD: true,  "Hamming Weight: valid, ECD: valid"),
-		("C0DE8DAAE05493BCB0F1664FB1751F10", ExpectedHammingWeight: true,  ExpectedECD: false, "Hamming Weight: valid, ECD: invalid"),
-		("C1DE8DAAE05493BCB0F1664FB1751F10", ExpectedHammingWeight: false, ExpectedECD: false, "Hamming Weight: invalid, ECD: invalid"),
-		("C1DE8DAAE05493BCB0F1664FB1751F00", ExpectedHammingWeight: false, ExpectedECD: true,  "Hamming Weight: invalid, ECD: valid"),
+		                                      ("C0DE8DAAE05493BCB0F1664FB1751F00", ExpectedHammingWeight: true,  ExpectedECD: true,  "Hamming Weight: valid, ECD: valid"),
+		                        (InvalidateECD("C0DE8DAAE05493BCB0F1664FB1751F00"), ExpectedHammingWeight: true,  ExpectedECD: false, "Hamming Weight: valid, ECD: invalid"),
+		              (InvalidateHammingWeight("C0DE8DAAE05493BCB0F1664FB1751F00"), ExpectedHammingWeight: false, ExpectedECD: true,  "Hamming Weight: invalid, ECD: valid"),
+		(InvalidateECD(InvalidateHammingWeight("C0DE8DAAE05493BCB0F1664FB1751F00")), ExpectedHammingWeight: false, ExpectedECD: false, "Hamming Weight: invalid, ECD: invalid"),
 	};
 
 	public static IEnumerable<object[]> ValidDataGenerator(Type type)
@@ -108,6 +108,13 @@ public class CPUKeyTests
 		throw new InvalidOperationException("Unable to invalidate Hamming weight.");
 	}
 
+	private static string InvalidateHammingWeight(string hexString)
+	{
+		var data = Convert.FromHexString(hexString);
+		InvalidateHammingWeight(data);
+		return Convert.ToHexString(data);
+	}
+
 	private static void InvalidateECD(Span<byte> span)
 	{
 		// Flip a bit in the ECD portion (bits 106 to 127, inclusive)
@@ -127,6 +134,13 @@ public class CPUKeyTests
 		}
 
 		throw new InvalidOperationException("Unable to invalidate ECD.");
+	}
+
+	private static string InvalidateECD(string hexString)
+	{
+		var data = Convert.FromHexString(hexString);
+		InvalidateECD(data);
+		return Convert.ToHexString(data);
 	}
 
 	#endregion
@@ -376,7 +390,7 @@ public class CPUKeyTests
 	#region Validation Tests
 
 	[Fact, Trait("Category", "Validation")]
-	public void InvalidateHammingWeight_ShouldInvalidateHammingWeight()
+	public void TestHelper_InvalidateHammingWeight_ShouldInvalidateHammingWeight()
 	{
 		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
 		cpukey.IsValid().ShouldBeTrue();
@@ -386,7 +400,7 @@ public class CPUKeyTests
 	}
 
 	[Fact, Trait("Category", "Validation")]
-	public void InvalidateECD_ShouldInvalidateECD()
+	public void TestHelper_InvalidateECD_ShouldInvalidateECD()
 	{
 		var cpukey = new CPUKey("C0DE8DAAE05493BCB0F1664FB1751F00");
 		cpukey.IsValid().ShouldBeTrue();
