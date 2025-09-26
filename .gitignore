@@ -1,6 +1,12 @@
+*.user
 .vs/
+
+ipch/
+obj/
+
+bin/
 Release_LTCG/
 Release/
 Debug/
-ipch/
-obj/
+
+Properties/
