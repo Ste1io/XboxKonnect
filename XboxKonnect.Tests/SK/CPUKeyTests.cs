@@ -1,4 +1,4 @@
-using SK;
+﻿using SK;
 
 namespace XboxKonnect.Tests;
 
@@ -36,9 +36,9 @@ public class CPUKeyTests
 	/// <seealso cref="CPUKey.ComputeECD"/>
 	private static readonly List<(string Data, bool ExpectedHammingWeight, bool ExpectedECD, string Info)> _invalidDataSource = new()
 	{
-		                                      ("C0DE8DAAE05493BCB0F1664FB1751F00", ExpectedHammingWeight: true,  ExpectedECD: true,  "Hamming Weight: valid, ECD: valid"),
-		                        (InvalidateECD("C0DE8DAAE05493BCB0F1664FB1751F00"), ExpectedHammingWeight: true,  ExpectedECD: false, "Hamming Weight: valid, ECD: invalid"),
-		              (InvalidateHammingWeight("C0DE8DAAE05493BCB0F1664FB1751F00"), ExpectedHammingWeight: false, ExpectedECD: true,  "Hamming Weight: invalid, ECD: valid"),
+		                                      ("C0DE8DAAE05493BCB0F1664FB1751F00",   ExpectedHammingWeight: true,  ExpectedECD: true,  "Hamming Weight: valid, ECD: valid"),
+		                        (InvalidateECD("C0DE8DAAE05493BCB0F1664FB1751F00"),  ExpectedHammingWeight: true,  ExpectedECD: false, "Hamming Weight: valid, ECD: invalid"),
+		              (InvalidateHammingWeight("C0DE8DAAE05493BCB0F1664FB1751F00"),  ExpectedHammingWeight: false, ExpectedECD: true,  "Hamming Weight: invalid, ECD: valid"),
 		(InvalidateECD(InvalidateHammingWeight("C0DE8DAAE05493BCB0F1664FB1751F00")), ExpectedHammingWeight: false, ExpectedECD: false, "Hamming Weight: invalid, ECD: invalid"),
 	};
 
@@ -87,7 +87,7 @@ public class CPUKeyTests
 
 	private static void InvalidateHammingWeight(Span<byte> span)
 	{
-		// Flip a bit in the non-ECD portion (bits 0 to 105, inclusive)
+		// Flip a bit in the non-ECD portion [0..105]
 		for (int i = 0; i <= 105; i++)
 		{
 			FlipBit(span, i);
@@ -117,7 +117,7 @@ public class CPUKeyTests
 
 	private static void InvalidateECD(Span<byte> span)
 	{
-		// Flip a bit in the ECD portion (bits 106 to 127, inclusive)
+		// Flip a bit in the ECD portion [106..127]
 		for (int i = 106; i <= 127; i++)
 		{
 			FlipBit(span, i);

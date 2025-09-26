@@ -1,4 +1,4 @@
-/*
+﻿/*
  * CPUKey class - v3.2.0
  * Created: 01/20/2020
  * Author:  Daniel McClintock (alias: Stelio Kontos)
@@ -53,8 +53,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <exception cref="ArgumentNullException"><paramref name="other"/> is null.</exception>
 	public CPUKey(CPUKey? other)
 	{
-		if (other is null)
-			throw new ArgumentNullException(nameof(other));
+		ArgumentNullException.ThrowIfNull(other);
 		data = new ReadOnlyMemory<byte>(other.data.ToArray());
 	}
 
@@ -289,8 +288,8 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	public static bool operator !=(CPUKey left, ReadOnlySpan<char> right) => !left.Equals(right);
 
 	public static bool operator <(CPUKey left, CPUKey right) => left.CompareTo(right) < 0;
-	public static bool operator <=(CPUKey left, CPUKey right) => left.CompareTo(right) <= 0;
 	public static bool operator >(CPUKey left, CPUKey right) => left.CompareTo(right) > 0;
+	public static bool operator <=(CPUKey left, CPUKey right) => left.CompareTo(right) <= 0;
 	public static bool operator >=(CPUKey left, CPUKey right) => left.CompareTo(right) >= 0;
 
 	#endregion
@@ -378,9 +377,9 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 		Span<ulong> parts = MemoryMarshal.Cast<byte, ulong>(span);
 
 		// last 22 high bits (MSB) are reserved for ECD and excluded using a 64-bit (LE) mask
-		const ulong ecdMask = 0xFFFF_FFFF_FF03_0000; // (BE: 0x03FF), cpukey bits 106-127 (inclusive)
+		const ulong ecdMask = 0xFFFF_FFFF_FF03_0000; // (BE: 0x03FF), cpukey bits [106..127] (inclusive)
 
-		// apply mask and count set bits in one shot using hardware intrinsics (fast)
+		// apply mask and count set bits in one shot using hardware intrinsics
 		return BitOperations.PopCount(parts[0]) + BitOperations.PopCount(parts[1] & ecdMask);
 	}
 
@@ -391,7 +390,7 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	/// <para>
 	/// Implements a type of customized Linear Feedback Shift Register (LFSR) variant for the ECD computation, simultaneously performing
 	/// Hamming weight error correction. The algorithm is designed to be cryptographically secure and tamper resistant, notably XOR'ing each
-	/// set bit with the magic constant 0x360325, most likely as a cheeky obfuscation measure.
+	/// set bit with the magic constant 0x360325, most likely as a cheeky obfuscation measure by the engineers at Microsoft.
 	/// </para>
 	/// </summary>
 	/// <remarks>
@@ -431,14 +430,14 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 	}
 
 	/// <summary>
-	/// Converts the CPUKey's underlying data consisting of 8-bit unsigned integers to its equivalent string representation that is
-	/// encoded with uppercase hex characters.
+	/// Converts the CPUKey's underlying data consisting of 8-bit unsigned integers to its equivalent string representation that is encoded
+	/// with uppercase hex characters.
 	/// </summary>
 	/// <remarks>
 	/// This method is a high-performance, zero-allocation custom implementation of <see cref="Convert.ToHexString(ReadOnlySpan{byte})"/>,
-	/// designed to avoid redundant bounds checking and error handling that was already done during construction. A CPUKey instance favors
-	/// deferred string conversion over caching, but comparisons/equality checks performed against another string are likely to be called in
-	/// a tight loop or performance-critical path, hence the custom implementation.
+	/// designed to avoid redundant bounds checking and error handling that was already performed during object construction. A CPUKey
+	/// instance favors deferred string conversion over caching, but comparisons/equality checks performed against another string are likely
+	/// to be called in a tight loop or performance-critical path, hence the custom implementation.
 	/// </remarks>
 	/// <returns>A string representing the CPUKey in uppercase hexadecimal format.</returns>
 	private string ConvertToHexString()
@@ -447,27 +446,34 @@ public sealed class CPUKey : IEquatable<CPUKey>, IComparable<CPUKey>
 			return String.Empty;
 
 		Span<char> span = stackalloc char[ValidCharLen];
-		for (int i = 0; i < data.Span.Length; i++)
+		var bytes = data.Span;
+		for (int i = 0; i < bytes.Length; i++)
 		{
-			byte b = data.Span[i];
-			span[i * 2] = GetHexValue(b >> 4); // high nibble
-			span[i * 2 + 1] = GetHexValue(b & 0xF); // low nibble
+			byte b = bytes[i];
+			span[i * 2] = HexLookup[b >> 4];
+			span[i * 2 + 1] = HexLookup[b & 0xF];
 		}
-
-		return new String(span);
+		return new string(span);
 	}
 
-	/// <summary>
-	/// Converts a nibble to its corresponding uppercase hex character.
-	/// </summary>
-	/// <param name="nibble">A value from 0-15 representing the 4-bit nibble.</param>
-	/// <returns>The uppercase hex character ('0'-'9', 'A'-'F').</returns>
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static char GetHexValue(int nibble) => (char)(nibble < 10 ? nibble + '0' : nibble - 10 + 'A');
+	private static readonly char[] HexLookup = "0123456789ABCDEF".ToCharArray();
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static bool IsHexCharacter(char value) => value is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
 
+	/// <summary>
+	/// Determines whether all elements in the provided <see cref="ReadOnlySpan{T}"/> satisfy the specified predicate.
+	/// </summary>
+	/// <remarks>
+	/// This helper is used instead of LINQ's <c>.All()</c> for performance and allocation reasons. LINQ would require boxing and heap
+	/// allocations, and does not support <see cref="ReadOnlySpan{T}"/>. This method has zero-allocation, is inlinable, and suitable for
+	/// tight validation loops on spans.
+	/// </remarks>
+	/// <typeparam name="T">The type of elements in the span.</typeparam>
+	/// <param name="span">The span to evaluate.</param>
+	/// <param name="predicate">The predicate to test each element.</param>
+	/// <returns><c>true</c> if every element matches the predicate; otherwise, <c>false</c>.</returns>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static bool All<T>(ReadOnlySpan<T> span, Predicate<T> predicate)
 	{
 		for (int i = 0; i < span.Length; i++)
