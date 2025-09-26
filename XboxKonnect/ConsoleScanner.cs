@@ -1,4 +1,4 @@
-/*
+﻿/*
  * XboxKonnect - Xbox Auto Discovery API
  *
  * Created: 10/24/2017
@@ -143,6 +143,8 @@ namespace SK.XboxKonnect
 
 			_subnetList = new(Utils.GetSubnets());
 
+			//RegisterTestNetEvents();
+			//NetworkChange.NetworkAvailabilityChanged += new NetworkAvailabilityChangedEventHandler(OnNetworkAvailabilityChanged);
 			NetworkChange.NetworkAddressChanged += new NetworkAddressChangedEventHandler(OnNetworkAddressChanged);
 
 			if (autoStart)
@@ -309,8 +311,7 @@ namespace SK.XboxKonnect
 					}
 					catch (Exception ex)
 					{
-						Trace.WriteLine($"Exception broadcasting to: {subnet}");
-						Trace.WriteLine(ex);
+						Trace.WriteLine($"Exception broadcasting to: {subnet}: {ex}");
 					}
 				}
 
@@ -351,6 +352,42 @@ namespace SK.XboxKonnect
 
 			foreach (var subnet in _subnetList)
 				Trace.WriteLine($"  [{subnet.BroadcastAddress}] {subnet.NIC.Name}: {subnet.NIC.Description} ({subnet.NIC.NetworkInterfaceType}) - {subnet.NIC.OperationalStatus}");
+		}
+
+		private void OnNetworkAvailabilityChanged(object? sender, NetworkAvailabilityEventArgs e)
+		{
+			Trace.WriteLine($"{nameof(OnNetworkAvailabilityChanged)}: Network availability changed.");
+			//_subnetList = new(Utils.GetSubnets());
+			//Utils.PrintNICs();
+		}
+
+		public static void RegisterTestNetEvents()
+		{
+			NetworkChange.NetworkAddressChanged += new NetworkAddressChangedEventHandler(AddressChangedCallback);
+			Console.WriteLine("Listening for network address changes.");
+
+			NetworkChange.NetworkAvailabilityChanged += new NetworkAvailabilityChangedEventHandler(AvailabilityChangedCallback);
+			Console.WriteLine("Listening for network availability changes.");
+		}
+
+		static void AddressChangedCallback(object? sender, EventArgs e)
+		{
+			Console.WriteLine($"{nameof(AddressChangedCallback)}: Network address changed.");
+
+			foreach (NetworkInterface n in NetworkInterface.GetAllNetworkInterfaces())
+			{
+				Console.WriteLine("   {0} is {1}", n.Name, n.OperationalStatus);
+			}
+		}
+
+		static void AvailabilityChangedCallback(object? sender, NetworkAvailabilityEventArgs e)
+		{
+			Console.WriteLine($"{nameof(AvailabilityChangedCallback)}: Network availability changed ({(e.IsAvailable ? "Down" : "Up")}).");
+
+			foreach (NetworkInterface n in NetworkInterface.GetAllNetworkInterfaces())
+			{
+				Console.WriteLine("   {0} is {1}", n.Name, n.OperationalStatus);
+			}
 		}
 
 		#endregion

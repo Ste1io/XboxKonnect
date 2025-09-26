@@ -31,7 +31,7 @@ namespace SK.XboxKonnect
 		{
 			ReadOnlySpan<byte> span = ip.GetAddressBytes();
 			uint addr = MemoryMarshal.Read<uint>(span);
-			uint mask = 0x00FFFFFF;
+			uint mask = 0x00FFFFFF; // IPv4 mask for: 255.255.255.0
 			return new IPAddress(addr | ~(mask));
 		}
 	}
