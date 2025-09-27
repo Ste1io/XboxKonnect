@@ -1,5 +1,5 @@
 ﻿/*
- * CPUKey class - v3.2.0
+ * CPUKey class - v3.2.1
  * Created: 01/20/2020
  * Author:  Daniel McClintock (alias: Stelio Kontos)
  *
